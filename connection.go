@@ -4,29 +4,34 @@ import (
 	"code.google.com/p/go.net/websocket"
 )
 
+const (
+	outChannelSize = 256
+)
+
 type Connection struct {
 	// The websocket connection.
-	ws *websocket.Conn
-
+	socket *websocket.Conn
+	// The router it belongs to.
+	router *Router
 	// Buffered channel of outbound messages.
-	send chan string
+	out chan string
 }
 
 func (conn *Connection) Reader() {
 	for {
 		var message string
-		err := websocket.Message.Receive(conn.ws, &message)
+		err := websocket.Message.Receive(conn.socket, &message)
 		if err != nil {
 			break
 		}
-		hub.broadcast <- message
+		go conn.router.Parse(conn, message) // TODO: test performance and necessity of this goroutine
 	}
 	conn.CloseSocket()
 }
 
 func (conn *Connection) Writer() {
-	for message := range conn.send {
-		err := websocket.Message.Send(conn.ws, message)
+	for message := range conn.out {
+		err := websocket.Message.Send(conn.socket, message)
 		if err != nil {
 			break
 		}
@@ -34,14 +39,10 @@ func (conn *Connection) Writer() {
 	conn.CloseSocket()
 }
 
-func (conn *Connection) CloseSocket() {
-	conn.ws.Close()
+func (conn *Connection) Send(data interface{}) {
+	// TODO
 }
 
-func WebSocketHandler(ws *websocket.Conn) {
-	conn := &Connection{send: make(chan string, 256), ws: ws}
-	hub.register <- conn
-	defer func() { hub.unregister <- conn }()
-	go conn.Writer()
-	conn.Reader()
+func (conn *Connection) CloseSocket() {
+	conn.socket.Close()
 }

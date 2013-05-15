@@ -5,6 +5,11 @@ import (
 	"log"
 )
 
+/*
+	should be rewritten and use a trick like this:
+	http://play.golang.org/p/8o0WywyaDT
+*/
+
 var debug *bool = flag.Bool("debug", true, "enable debug logging") // currently true for development
 
 const (

@@ -12,21 +12,24 @@ type Hub struct {
 
 	// Unregister requests from connections.
 	unregister chan *Connection
+
+	// Flag to determine if running or not
+	isRunning bool
 }
 
 func (hub *Hub) Remove(conn *Connection) {
 	delete(hub.connections, conn)
-	close(conn.send)
+	close(conn.out)
 }
 
-var hub = Hub{
-	broadcast:   make(chan string),
-	register:    make(chan *Connection),
-	unregister:  make(chan *Connection),
-	connections: make(map[*Connection]bool),
+func (hub *Hub) Run() {
+	if hub.isRunning != true {
+		hub.isRunning = true
+		go hub.run()
+	}
 }
 
-func StartHub() {
+func (hub *Hub) run() {
 	for {
 		select {
 		case conn := <-hub.register:
@@ -36,7 +39,7 @@ func StartHub() {
 		case message := <-hub.broadcast:
 			for conn := range hub.connections {
 				select {
-				case conn.send <- message:
+				case conn.out <- message:
 				default: // default only triggered when sending failed, so get rid of problematic connection
 					hub.Remove(conn)
 					// go conn.CloseSocket() Shouldn't be necessary!
@@ -44,4 +47,12 @@ func StartHub() {
 			}
 		}
 	}
+}
+
+var hub = Hub{
+	broadcast:   make(chan string),
+	register:    make(chan *Connection),
+	unregister:  make(chan *Connection),
+	connections: make(map[*Connection]bool),
+	isRunning:   false,
 }
