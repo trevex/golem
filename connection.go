@@ -4,7 +4,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 )
 
-type connection struct {
+type Connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
 
@@ -12,32 +12,36 @@ type connection struct {
 	send chan string
 }
 
-func (c *connection) reader() {
+func (conn *Connection) Reader() {
 	for {
 		var message string
-		err := websocket.Message.Receive(c.ws, &message)
+		err := websocket.Message.Receive(conn.ws, &message)
 		if err != nil {
 			break
 		}
-		h.broadcast <- message
+		hub.broadcast <- message
 	}
-	c.ws.Close()
+	conn.CloseSocket()
 }
 
-func (c *connection) writer() {
-	for message := range c.send {
-		err := websocket.Message.Send(c.ws, message)
+func (conn *Connection) Writer() {
+	for message := range conn.send {
+		err := websocket.Message.Send(conn.ws, message)
 		if err != nil {
 			break
 		}
 	}
-	c.ws.Close()
+	conn.CloseSocket()
 }
 
-func wsHandler(ws *websocket.Conn) {
-	c := &connection{send: make(chan string, 256), ws: ws}
-	h.register <- c
-	defer func() { h.unregister <- c }()
-	go c.writer()
-	c.reader()
+func (conn *Connection) CloseSocket() {
+	conn.ws.Close()
+}
+
+func WebSocketHandler(ws *websocket.Conn) {
+	conn := &Connection{send: make(chan string, 256), ws: ws}
+	hub.register <- conn
+	defer func() { hub.unregister <- conn }()
+	go conn.Writer()
+	conn.Reader()
 }

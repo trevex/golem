@@ -1,42 +1,45 @@
 package golem
 
-type hub struct {
+type Hub struct {
 	// Registered connections.
-	connections map[*connection]bool
+	connections map[*Connection]bool
 
 	// Inbound messages from the connections.
 	broadcast chan string
 
 	// Register requests from the connections.
-	register chan *connection
+	register chan *Connection
 
 	// Unregister requests from connections.
-	unregister chan *connection
+	unregister chan *Connection
 }
 
-var h = hub{
+func (hub *Hub) Remove(conn *Connection) {
+	delete(hub.connections, conn)
+	close(conn.send)
+}
+
+var hub = Hub{
 	broadcast:   make(chan string),
-	register:    make(chan *connection),
-	unregister:  make(chan *connection),
-	connections: make(map[*connection]bool),
+	register:    make(chan *Connection),
+	unregister:  make(chan *Connection),
+	connections: make(map[*Connection]bool),
 }
 
-func (h *hub) run() {
+func StartHub() {
 	for {
 		select {
-		case c := <-h.register:
-			h.connections[c] = true
-		case c := <-h.unregister:
-			delete(h.connections, c)
-			close(c.send)
-		case m := <-h.broadcast:
-			for c := range h.connections {
+		case conn := <-hub.register:
+			hub.connections[conn] = true
+		case conn := <-hub.unregister:
+			hub.Remove(conn)
+		case message := <-hub.broadcast:
+			for conn := range hub.connections {
 				select {
-				case c.send <- m:
-				default:
-					delete(h.connections, c)
-					close(c.send)
-					go c.ws.Close()
+				case conn.send <- message:
+				default: // default only triggered when sending failed, so get rid of problematic connection
+					hub.Remove(conn)
+					// go conn.CloseSocket() Shouldn't be necessary!
 				}
 			}
 		}
