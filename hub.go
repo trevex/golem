@@ -5,7 +5,7 @@ type Hub struct {
 	connections map[*Connection]bool
 
 	// Inbound messages from the connections.
-	broadcast chan string
+	broadcast chan []byte
 
 	// Register requests from the connections.
 	register chan *Connection
@@ -40,9 +40,8 @@ func (hub *Hub) run() {
 			for conn := range hub.connections {
 				select {
 				case conn.out <- message:
-				default: // default only triggered when sending failed, so get rid of problematic connection
+				default:
 					hub.Remove(conn)
-					// go conn.CloseSocket() Shouldn't be necessary!
 				}
 			}
 		}
@@ -50,7 +49,7 @@ func (hub *Hub) run() {
 }
 
 var hub = Hub{
-	broadcast:   make(chan string),
+	broadcast:   make(chan []byte),
 	register:    make(chan *Connection),
 	unregister:  make(chan *Connection),
 	connections: make(map[*Connection]bool),

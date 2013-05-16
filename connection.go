@@ -1,48 +1,92 @@
 package golem
 
 import (
-	"code.google.com/p/go.net/websocket"
+	"github.com/garyburd/go-websocket/websocket"
+	"io/ioutil"
+	"time"
 )
 
 const (
-	outChannelSize = 256
+	// Time allowed to write a message to the client.
+	writeWait = 50 * time.Millisecond
+	// Time allowed to read the next message from the client.
+	readWait = 100 * time.Millisecond
+	// Send pings to client with this period. Must be less than readWait.
+	pingPeriod = (readWait * 9) / 10
+	// Maximum message size allowed from client.
+	maxMessageSize = 512
+	//
+	outChannelSize = 512
 )
 
+// connection is an middleman between the websocket connection and the hub.
 type Connection struct {
 	// The websocket connection.
 	socket *websocket.Conn
-	// The router it belongs to.
+	// Associated router.
 	router *Router
 	// Buffered channel of outbound messages.
-	out chan string
+	out chan []byte
 }
 
-func (conn *Connection) Reader() {
+// readPump pumps messages from the websocket connection to the hub.
+func (conn *Connection) readPump() {
+	defer func() {
+		hub.unregister <- conn
+		conn.socket.Close()
+	}()
+	conn.socket.SetReadLimit(maxMessageSize)
+	conn.socket.SetReadDeadline(time.Now().Add(readWait))
 	for {
-		var message string
-		err := websocket.Message.Receive(conn.socket, &message)
+		op, r, err := conn.socket.NextReader()
 		if err != nil {
 			break
 		}
-		go conn.router.Parse(conn, message) // TODO: test performance and necessity of this goroutine
-	}
-	conn.CloseSocket()
-}
-
-func (conn *Connection) Writer() {
-	for message := range conn.out {
-		err := websocket.Message.Send(conn.socket, message)
-		if err != nil {
-			break
+		switch op {
+		case websocket.OpPong:
+			conn.socket.SetReadDeadline(time.Now().Add(readWait))
+		case websocket.OpText:
+			message, err := ioutil.ReadAll(r)
+			if err != nil {
+				break
+			}
+			conn.router.Parse(conn, message)
 		}
 	}
-	conn.CloseSocket()
 }
 
-func (conn *Connection) Send(data interface{}) {
-	// TODO
+// write writes a message with the given opCode and payload.
+func (conn *Connection) write(opCode int, payload []byte) error {
+	conn.socket.SetWriteDeadline(time.Now().Add(writeWait))
+	return conn.socket.WriteMessage(opCode, payload)
 }
 
-func (conn *Connection) CloseSocket() {
-	conn.socket.Close()
+// writePump pumps messages from the hub to the websocket connection.
+func (conn *Connection) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		conn.socket.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-conn.out:
+			if !ok {
+				conn.write(websocket.OpClose, []byte{})
+				return
+			}
+			if err := conn.write(websocket.OpText, message); err != nil {
+				return
+			}
+		case <-ticker.C:
+			if err := conn.write(websocket.OpPing, []byte{}); err != nil {
+				return
+			}
+		}
+	}
+}
+
+//
+func (conn *Connection) Send(msg interface{}) {
+
 }

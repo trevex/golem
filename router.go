@@ -1,10 +1,12 @@
 package golem
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"encoding/json"
 	"fmt"
+	"github.com/garyburd/go-websocket/websocket"
+	"log"
 	"net/http"
+	"reflect"
 )
 
 type DataType map[string]interface{}
@@ -27,17 +29,15 @@ func NewRouter() *Router {
 	}
 }
 
-func (router *Router) On(name string, cb CallbackType) {
-	router.callbacks[name] = cb
+func (router *Router) On(name string, fptr CallbackType) {
+	fn := reflect.ValueOf(fptr)
+	fmt.Println(fn.Type())
+	router.callbacks[name] = fptr
 }
 
-func (router *Router) Handler() http.Handler {
-	return websocket.Handler(CreateHandler(router))
-}
-
-func (router *Router) Parse(conn *Connection, message string) {
+func (router *Router) Parse(conn *Connection, message []byte) {
 	var decoded Protocol
-	err := json.Unmarshal([]byte(message), &decoded)
+	err := json.Unmarshal(message, &decoded)
 	if err == nil {
 		if cb, ok := router.callbacks[decoded.CallbackName]; ok != false {
 			cb(conn, &decoded.Data)
@@ -48,16 +48,37 @@ func (router *Router) Parse(conn *Connection, message string) {
 	defer recover()
 }
 
-func CreateHandler(router *Router) func(*websocket.Conn) {
-	return func(socket *websocket.Conn) {
+func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", 405)
+			return
+		}
+
+		if r.Header.Get("Origin") != "http://"+r.Host {
+			http.Error(w, "Origin not allowed", 403)
+			return
+		}
+
+		socket, err := websocket.Upgrade(w, r.Header, nil, 1024, 1024)
+
+		if _, ok := err.(websocket.HandshakeError); ok {
+			http.Error(w, "Not a websocket handshake", 400)
+			return
+		} else if err != nil {
+			log.Println(err)
+			return
+		}
+
 		conn := &Connection{
 			socket: socket,
 			router: router,
-			out:    make(chan string, outChannelSize),
+			out:    make(chan []byte, outChannelSize),
 		}
+
 		hub.register <- conn
-		defer func() { hub.unregister <- conn }()
-		go conn.Writer()
-		conn.Reader()
+		go conn.writePump()
+		conn.readPump()
 	}
 }
