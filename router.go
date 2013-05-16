@@ -91,7 +91,7 @@ func (router *Router) On(name string, callback interface{}) {
 	unmarshalThenCallback := func(conn *Connection, data []byte) {
 		result := reflect.New(callbackDataElem)
 
-		err := json.Unmarshal(data, &result)
+		err := json.Unmarshal(data, result.Interface())
 		if err == nil {
 			args := []reflect.Value{reflect.ValueOf(conn), result}
 			callbackValue.Call(args)
