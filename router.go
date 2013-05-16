@@ -9,15 +9,19 @@ import (
 	"reflect"
 )
 
-type DataType *json.RawMessage
-type CallbackType func(*Connection, DataType)
+type CallbackType func(*Connection, *json.RawMessage)
 type CallbackMap map[string]CallbackType
 
-type Protocol map[string]DataType
+const (
+	nameAccessKey = "n"
+	dataAccessKey = "d"
+)
+
+type Protocol map[string]*json.RawMessage
 
 func (p Protocol) GetName() (string, bool) {
 	var name string
-	err := json.Unmarshal(*p["n"], &name)
+	err := json.Unmarshal(*p[nameAccessKey], &name)
 	if err == nil {
 		return name, true
 	} else {
@@ -25,8 +29,8 @@ func (p Protocol) GetName() (string, bool) {
 	}
 }
 
-func (p Protocol) GetData() DataType {
-	return p["d"]
+func (p Protocol) GetData() *json.RawMessage {
+	return p[dataAccessKey]
 }
 
 type Router struct {
@@ -41,13 +45,17 @@ func NewRouter() *Router {
 }
 
 func (router *Router) On(name string, cb interface{}) {
+
 	cbValue := reflect.ValueOf(cb)
+
 	cbDataType := reflect.TypeOf(cb).In(1)
-	pre := func(conn *Connection, data DataType) {
+
+	pre := func(conn *Connection, data *json.RawMessage) {
 		decoded := reflect.New(cbDataType)
+
 		err := json.Unmarshal(*data, &decoded)
 		if err == nil {
-			args := []reflect.Value{reflect.ValueOf(conn), reflect.ValueOf(decoded)}
+			args := []reflect.Value{reflect.ValueOf(conn), decoded}
 			cbValue.Call(args)
 		} else {
 			fmt.Println("[JSON-FORWARD]", data, err) // TODO: Proper debug output!
