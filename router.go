@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+const (
+	protocolSeperator = " "
+)
+
 type Router struct {
 	callbacks map[string]func(*Connection, []byte)
 }
@@ -60,14 +64,30 @@ func (router *Router) On(name string, callback interface{}) {
 
 	callbackDataType := reflect.TypeOf(callback).In(1)
 
+	// If function accepts byte arrays, use NO parser
 	if reflect.TypeOf([]byte{}) == callbackDataType {
 		router.callbacks[name] = callback.(func(*Connection, []byte))
 		return
 	}
 
+	// Needed by custom and json parsers
 	callbackValue := reflect.ValueOf(callback)
-	callbackDataElem := callbackDataType.Elem()
 
+	// If parser is available for this type, use it
+	if parser, ok := parserMap[callbackDataType]; ok {
+		parserThenCallback := func(conn *Connection, data []byte) {
+			if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
+				args := []reflect.Value{reflect.ValueOf(conn), result[0]}
+				callbackValue.Call(args)
+			}
+		}
+		router.callbacks[name] = parserThenCallback
+		return
+	}
+
+	// Else interpret data as JSON and try to unmarshal it into requested type
+	// TODO: make it actually work...
+	callbackDataElem := callbackDataType.Elem()
 	unmarshalThenCallback := func(conn *Connection, data []byte) {
 		result := reflect.New(callbackDataElem)
 
@@ -84,7 +104,7 @@ func (router *Router) On(name string, callback interface{}) {
 
 func (router *Router) parse(conn *Connection, rawdata []byte) {
 	rawstring := string(rawdata)
-	data := strings.SplitN(rawstring, " ", 2)
+	data := strings.SplitN(rawstring, protocolSeperator, 2)
 	if len(data) == 2 {
 		if callback, ok := router.callbacks[data[0]]; ok {
 			callback(conn, []byte(data[1]))
