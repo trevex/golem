@@ -15,7 +15,7 @@ const (
 	pingPeriod = (readWait * 9) / 10
 	// Maximum message size allowed from client.
 	maxMessageSize = 512
-	//
+	// Outgoing default channel size.
 	outChannelSize = 512
 )
 
@@ -50,7 +50,7 @@ func (conn *Connection) readPump() {
 			if err != nil {
 				break
 			}
-			conn.router.Parse(conn, message)
+			conn.router.parse(conn, message)
 		}
 	}
 }

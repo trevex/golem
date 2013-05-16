@@ -7,79 +7,18 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strings"
 )
-
-type CallbackType func(*Connection, *json.RawMessage)
-type CallbackMap map[string]CallbackType
-
-const (
-	nameAccessKey = "n"
-	dataAccessKey = "d"
-)
-
-type Protocol map[string]*json.RawMessage
-
-func (p Protocol) GetName() (string, bool) {
-	var name string
-	err := json.Unmarshal(*p[nameAccessKey], &name)
-	if err == nil {
-		return name, true
-	} else {
-		return name, false
-	}
-}
-
-func (p Protocol) GetData() *json.RawMessage {
-	return p[dataAccessKey]
-}
 
 type Router struct {
-	callbacks CallbackMap
+	callbacks map[string]func(*Connection, []byte)
 }
 
 func NewRouter() *Router {
-	hub.Run()
+	hub.run()
 	return &Router{
-		callbacks: make(CallbackMap),
+		callbacks: make(map[string]func(*Connection, []byte)),
 	}
-}
-
-func (router *Router) On(name string, cb interface{}) {
-
-	cbValue := reflect.ValueOf(cb)
-
-	cbDataType := reflect.TypeOf(cb).In(1)
-
-	pre := func(conn *Connection, data *json.RawMessage) {
-		decoded := reflect.New(cbDataType)
-
-		err := json.Unmarshal(*data, &decoded)
-		if err == nil {
-			args := []reflect.Value{reflect.ValueOf(conn), decoded}
-			cbValue.Call(args)
-		} else {
-			fmt.Println("[JSON-FORWARD]", data, err) // TODO: Proper debug output!
-		}
-	}
-	router.callbacks[name] = pre
-}
-
-func (router *Router) Parse(conn *Connection, message []byte) {
-	var decoded Protocol
-	err := json.Unmarshal(message, &decoded)
-	if err == nil {
-		name, ok := decoded.GetName()
-		if ok {
-			if cb, ok := router.callbacks[name]; ok != false {
-				cb(conn, decoded.GetData())
-			}
-		} else {
-			fmt.Println("[JSON-NAME]", string(message), err) // TODO: Proper debug output!
-		}
-	} else {
-		fmt.Println("[JSON-INTERPRET]", string(message), err) // TODO: Proper debug output!
-	}
-	defer recover()
 }
 
 func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
@@ -115,4 +54,43 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 		go conn.writePump()
 		conn.readPump()
 	}
+}
+
+func (router *Router) On(name string, callback interface{}) {
+
+	callbackDataType := reflect.TypeOf(callback).In(1)
+
+	fmt.Println(callbackDataType, reflect.TypeOf([]byte{}))
+	if reflect.TypeOf([]byte{}) == callbackDataType {
+		router.callbacks[name] = callback.(func(*Connection, []byte))
+		return
+	}
+
+	callbackValue := reflect.ValueOf(callback)
+	callbackDataElem := callbackDataType.Elem()
+
+	preCallbackParser := func(conn *Connection, data []byte) {
+		result := reflect.New(callbackDataElem)
+
+		err := json.Unmarshal(data, &result)
+		if err == nil {
+			args := []reflect.Value{reflect.ValueOf(conn), result}
+			callbackValue.Call(args)
+		} else {
+			fmt.Println("[JSON-FORWARD]", data, err) // TODO: Proper debug output!
+		}
+	}
+	router.callbacks[name] = preCallbackParser
+}
+
+func (router *Router) parse(conn *Connection, rawdata []byte) {
+	rawstring := string(rawdata)
+	data := strings.SplitN(rawstring, " ", 2)
+	if len(data) == 2 {
+		if callback, ok := router.callbacks[data[0]]; ok {
+			callback(conn, []byte(data[1]))
+		}
+	}
+
+	defer recover()
 }

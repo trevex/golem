@@ -22,29 +22,27 @@ func (hub *Hub) Remove(conn *Connection) {
 	close(conn.out)
 }
 
-func (hub *Hub) Run() {
+func (hub *Hub) run() {
 	if hub.isRunning != true {
 		hub.isRunning = true
-		go hub.run()
-	}
-}
-
-func (hub *Hub) run() {
-	for {
-		select {
-		case conn := <-hub.register:
-			hub.connections[conn] = true
-		case conn := <-hub.unregister:
-			hub.Remove(conn)
-		case message := <-hub.broadcast:
-			for conn := range hub.connections {
+		go func() {
+			for {
 				select {
-				case conn.out <- message:
-				default:
+				case conn := <-hub.register:
+					hub.connections[conn] = true
+				case conn := <-hub.unregister:
 					hub.Remove(conn)
+				case message := <-hub.broadcast:
+					for conn := range hub.connections {
+						select {
+						case conn.out <- message:
+						default:
+							hub.Remove(conn)
+						}
+					}
 				}
 			}
-		}
+		}()
 	}
 }
 
