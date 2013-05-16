@@ -9,13 +9,24 @@ import (
 	"reflect"
 )
 
-type DataType map[string]interface{}
-type CallbackType func(*Connection, *DataType)
+type DataType *json.RawMessage
+type CallbackType func(*Connection, DataType)
 type CallbackMap map[string]CallbackType
 
-type Protocol struct {
-	CallbackName string   `json:"n"`
-	Data         DataType `json:"d"`
+type Protocol map[string]DataType
+
+func (p Protocol) GetName() (string, bool) {
+	var name string
+	err := json.Unmarshal(*p["n"], &name)
+	if err == nil {
+		return name, true
+	} else {
+		return name, false
+	}
+}
+
+func (p Protocol) GetData() DataType {
+	return p["d"]
 }
 
 type Router struct {
@@ -29,21 +40,36 @@ func NewRouter() *Router {
 	}
 }
 
-func (router *Router) On(name string, fptr CallbackType) {
-	fn := reflect.ValueOf(fptr)
-	fmt.Println(fn.Type())
-	router.callbacks[name] = fptr
+func (router *Router) On(name string, cb interface{}) {
+	cbValue := reflect.ValueOf(cb)
+	cbDataType := reflect.TypeOf(cb).In(1)
+	pre := func(conn *Connection, data DataType) {
+		decoded := reflect.New(cbDataType)
+		err := json.Unmarshal(*data, &decoded)
+		if err == nil {
+			args := []reflect.Value{reflect.ValueOf(conn), reflect.ValueOf(decoded)}
+			cbValue.Call(args)
+		} else {
+			fmt.Println("[JSON-FORWARD]", data, err) // TODO: Proper debug output!
+		}
+	}
+	router.callbacks[name] = pre
 }
 
 func (router *Router) Parse(conn *Connection, message []byte) {
 	var decoded Protocol
 	err := json.Unmarshal(message, &decoded)
 	if err == nil {
-		if cb, ok := router.callbacks[decoded.CallbackName]; ok != false {
-			cb(conn, &decoded.Data)
+		name, ok := decoded.GetName()
+		if ok {
+			if cb, ok := router.callbacks[name]; ok != false {
+				cb(conn, decoded.GetData())
+			}
+		} else {
+			fmt.Println("[JSON-NAME]", string(message), err) // TODO: Proper debug output!
 		}
 	} else {
-		fmt.Println("[JSON-FAIL]", message) // TODO: Proper debug output!
+		fmt.Println("[JSON-INTERPRET]", string(message), err) // TODO: Proper debug output!
 	}
 	defer recover()
 }

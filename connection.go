@@ -8,9 +8,9 @@ import (
 
 const (
 	// Time allowed to write a message to the client.
-	writeWait = 50 * time.Millisecond
+	writeWait = 10 * time.Second
 	// Time allowed to read the next message from the client.
-	readWait = 100 * time.Millisecond
+	readWait = 60 * time.Second
 	// Send pings to client with this period. Must be less than readWait.
 	pingPeriod = (readWait * 9) / 10
 	// Maximum message size allowed from client.
