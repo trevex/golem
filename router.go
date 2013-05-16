@@ -60,7 +60,6 @@ func (router *Router) On(name string, callback interface{}) {
 
 	callbackDataType := reflect.TypeOf(callback).In(1)
 
-	fmt.Println(callbackDataType, reflect.TypeOf([]byte{}))
 	if reflect.TypeOf([]byte{}) == callbackDataType {
 		router.callbacks[name] = callback.(func(*Connection, []byte))
 		return
@@ -69,7 +68,7 @@ func (router *Router) On(name string, callback interface{}) {
 	callbackValue := reflect.ValueOf(callback)
 	callbackDataElem := callbackDataType.Elem()
 
-	preCallbackParser := func(conn *Connection, data []byte) {
+	unmarshalThenCallback := func(conn *Connection, data []byte) {
 		result := reflect.New(callbackDataElem)
 
 		err := json.Unmarshal(data, &result)
@@ -80,7 +79,7 @@ func (router *Router) On(name string, callback interface{}) {
 			fmt.Println("[JSON-FORWARD]", data, err) // TODO: Proper debug output!
 		}
 	}
-	router.callbacks[name] = preCallbackParser
+	router.callbacks[name] = unmarshalThenCallback
 }
 
 func (router *Router) parse(conn *Connection, rawdata []byte) {
