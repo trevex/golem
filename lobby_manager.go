@@ -9,7 +9,7 @@ type lobbyManager struct {
 	lobbies    map[string]*lobby
 	register   chan *lobbyRequest
 	unregister chan *lobbyRequest
-	remove     chan *lobby
+	remove     chan string
 }
 
 func newLobbyManager() *lobbyManager {
@@ -17,7 +17,7 @@ func newLobbyManager() *lobbyManager {
 		lobbies:    make(map[string]*lobby),
 		register:   make(chan *lobbyRequest),
 		unregister: make(chan *lobbyRequest),
-		remove:     make(chan *lobby),
+		remove:     make(chan string),
 	}
 }
 
@@ -27,13 +27,20 @@ func (lm *lobbyManager) run() {
 		case req := <-lm.register:
 			l, ok := lm.lobbies[req.name]
 			if !ok {
-				l := newLobby(lm)
+				l := newLobby(lm, req.name)
 				lm.lobbies[req.name] = l
 				l.subscribe <- req.conn
 				go l.run()
 			} else {
 				l.subscribe <- req.conn
 			}
+		case req := <-lm.unregister:
+			l, ok := lm.lobbies[req.name]
+			if ok {
+				l.unsubscribe <- req.conn
+			}
+		case ln := <-lm.remove:
+			delete(lm.lobbies, ln)
 		}
 	}
 }

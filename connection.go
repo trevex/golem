@@ -17,6 +17,8 @@ const (
 	maxMessageSize = 512
 	// Outgoing default channel size.
 	outChannelSize = 512
+	// Default lobby capacity
+	lobbyDefaultCapacity = 3
 )
 
 // connection is an middleman between the websocket connection and the hub.
@@ -29,10 +31,18 @@ type Connection struct {
 	out chan []byte
 }
 
+func newConnection(s *websocket.Conn, r *Router) *Connection {
+	return &Connection{
+		socket: s,
+		router: r,
+		out:    make(chan []byte, outChannelSize),
+	}
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 func (conn *Connection) readPump() {
 	defer func() {
-		hub.connMngr.unregister <- conn
+		hub.connMgr.unregister <- conn
 		conn.socket.Close()
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)

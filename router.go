@@ -48,13 +48,9 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		conn := &Connection{
-			socket: socket,
-			router: router,
-			out:    make(chan []byte, outChannelSize),
-		}
+		conn := newConnection(socket, router)
 
-		hub.connMngr.register <- conn
+		hub.connMgr.register <- conn
 		go conn.writePump()
 		conn.readPump()
 	}

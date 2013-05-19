@@ -2,7 +2,10 @@ package golem
 
 type Hub struct {
 	// Connection Manager
-	connMngr *connectionManager
+	connMgr *connectionManager
+
+	// Lobby Manager
+	lobbyMgr *lobbyManager
 
 	// Flag to determine if running or not
 	isRunning bool
@@ -11,12 +14,14 @@ type Hub struct {
 func (hub *Hub) run() {
 	if hub.isRunning != true {
 		hub.isRunning = true
-		go hub.connMngr.run()
+		go hub.connMgr.run()
+		go hub.lobbyMgr.run()
 	}
 }
 
 var hub = Hub{
-	connMngr:  newConnectionManager(),
+	connMgr:   newConnectionManager(),
+	lobbyMgr:  newLobbyManager(),
 	isRunning: false,
 }
 

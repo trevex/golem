@@ -1,6 +1,8 @@
 package golem
 
 type lobby struct {
+	name string
+
 	// Connection registered to this lobby.
 	connections map[*Connection]bool
 
@@ -16,8 +18,9 @@ type lobby struct {
 	manager *lobbyManager
 }
 
-func newLobby(mngr *lobbyManager) *lobby {
+func newLobby(mngr *lobbyManager, name string) *lobby {
 	return &lobby{
+		name:        name,
 		broadcast:   make(chan []byte),
 		subscribe:   make(chan *Connection),
 		unsubscribe: make(chan *Connection),
@@ -51,8 +54,9 @@ func (l *lobby) run() {
 
 func (l *lobby) removeAndCheck(conn *Connection) bool {
 	delete(l.connections, conn)
+	// TODO: notify connection to remove this lobby from its lobby list
 	if len(l.connections) == 0 {
-		l.manager.remove <- l
+		l.manager.remove <- l.name
 		close(l.broadcast)
 		close(l.subscribe)
 		close(l.unsubscribe)
