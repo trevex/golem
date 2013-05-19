@@ -54,7 +54,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			out:    make(chan []byte, outChannelSize),
 		}
 
-		hub.register <- conn
+		hub.connMngr.register <- conn
 		go conn.writePump()
 		conn.readPump()
 	}
@@ -86,7 +86,6 @@ func (router *Router) On(name string, callback interface{}) {
 	}
 
 	// Else interpret data as JSON and try to unmarshal it into requested type
-	// TODO: make it actually work...
 	callbackDataElem := callbackDataType.Elem()
 	unmarshalThenCallback := func(conn *Connection, data []byte) {
 		result := reflect.New(callbackDataElem)
@@ -105,10 +104,8 @@ func (router *Router) On(name string, callback interface{}) {
 func (router *Router) parse(conn *Connection, rawdata []byte) {
 	rawstring := string(rawdata)
 	data := strings.SplitN(rawstring, protocolSeperator, 2)
-	if len(data) == 2 {
-		if callback, ok := router.callbacks[data[0]]; ok {
-			callback(conn, []byte(data[1]))
-		}
+	if callback, ok := router.callbacks[data[0]]; ok {
+		callback(conn, []byte(data[1]))
 	}
 
 	defer recover()

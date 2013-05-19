@@ -32,7 +32,7 @@ type Connection struct {
 // readPump pumps messages from the websocket connection to the hub.
 func (conn *Connection) readPump() {
 	defer func() {
-		hub.unregister <- conn
+		hub.connMngr.unregister <- conn
 		conn.socket.Close()
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
