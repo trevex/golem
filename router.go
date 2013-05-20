@@ -16,12 +16,15 @@ const (
 
 type Router struct {
 	callbacks map[string]func(*Connection, []byte)
+
+	closeCallback func(*Connection)
 }
 
 func NewRouter() *Router {
 	hub.run()
 	return &Router{
-		callbacks: make(map[string]func(*Connection, []byte)),
+		callbacks:     make(map[string]func(*Connection, []byte)),
+		closeCallback: func(*Connection) {},
 	}
 }
 
@@ -105,4 +108,8 @@ func (router *Router) parse(conn *Connection, rawdata []byte) {
 	}
 
 	defer recover()
+}
+
+func (router *Router) OnClose(callback func(*Connection)) {
+	router.closeCallback = callback
 }

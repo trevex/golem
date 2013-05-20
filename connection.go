@@ -44,6 +44,7 @@ func (conn *Connection) readPump() {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
+		conn.router.closeCallback(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))
@@ -76,7 +77,7 @@ func (conn *Connection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		conn.socket.Close()
+		conn.socket.Close() // Necessary to force reading to stop
 	}()
 	for {
 		select {
