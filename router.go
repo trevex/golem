@@ -50,7 +50,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 
 		conn := newConnection(socket, router)
 
-		hub.connMgr.register <- conn
+		hub.register <- conn
 		go conn.writePump()
 		conn.readPump()
 	}

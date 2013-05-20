@@ -27,27 +27,22 @@ type Connection struct {
 	socket *websocket.Conn
 	// Associated router.
 	router *Router
-	// List of joined lobbies
-	lobbies *lobbyList
 	// Buffered channel of outbound messages.
 	out chan []byte
 }
 
 func newConnection(s *websocket.Conn, r *Router) *Connection {
-	conn := &Connection{
-		socket:  s,
-		router:  r,
-		lobbies: newLobbyList(),
-		out:     make(chan []byte, outChannelSize),
+	return &Connection{
+		socket: s,
+		router: r,
+		out:    make(chan []byte, outChannelSize),
 	}
-	go conn.lobbies.run()
-	return conn
 }
 
 // readPump pumps messages from the websocket connection to the hub.
 func (conn *Connection) readPump() {
 	defer func() {
-		hub.connMgr.unregister <- conn
+		hub.unregister <- conn
 		conn.socket.Close()
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
@@ -82,8 +77,6 @@ func (conn *Connection) writePump() {
 	defer func() {
 		ticker.Stop()
 		conn.socket.Close()
-		conn.lobbies.clear <- conn
-		conn.lobbies.stop <- true
 	}()
 	for {
 		select {
