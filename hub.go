@@ -19,6 +19,13 @@ func (hub *Hub) run() {
 	}
 }
 
+func (hub *Hub) JoinLobby(conn *Connection, name string) {
+	hub.lobbyMgr.register <- &lobbyRequest{
+		name: name,
+		conn: conn,
+	}
+}
+
 var hub = Hub{
 	connMgr:   newConnectionManager(),
 	lobbyMgr:  newLobbyManager(),

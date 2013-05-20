@@ -34,10 +34,12 @@ func (lm *lobbyManager) run() {
 			} else {
 				l.subscribe <- req.conn
 			}
+			req.conn.lobbies.add <- l
 		case req := <-lm.unregister:
 			l, ok := lm.lobbies[req.name]
 			if ok {
 				l.unsubscribe <- req.conn
+				req.conn.lobbies.remove <- l
 			}
 		case ln := <-lm.remove:
 			delete(lm.lobbies, ln)

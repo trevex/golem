@@ -1,5 +1,7 @@
 package golem
 
+import "fmt"
+
 type lobby struct {
 	name string
 
