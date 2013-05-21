@@ -36,7 +36,7 @@ const (
 	// Maximum message size allowed from client.
 	maxMessageSize = 512
 	// Outgoing default channel size.
-	outChannelSize = 512
+	sendChannelSize = 512
 	// Default lobby capacity
 	lobbyDefaultCapacity = 3
 )
@@ -48,14 +48,14 @@ type Connection struct {
 	// Associated router.
 	router *Router
 	// Buffered channel of outbound messages.
-	out chan []byte
+	Send chan []byte
 }
 
 func newConnection(s *websocket.Conn, r *Router) *Connection {
 	return &Connection{
 		socket: s,
 		router: r,
-		out:    make(chan []byte, outChannelSize),
+		Send:   make(chan []byte, sendChannelSize),
 	}
 }
 
@@ -101,7 +101,7 @@ func (conn *Connection) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-conn.out:
+		case message, ok := <-conn.Send:
 			if !ok {
 				conn.write(websocket.OpClose, []byte{})
 				return
@@ -115,9 +115,4 @@ func (conn *Connection) writePump() {
 			}
 		}
 	}
-}
-
-//
-func (conn *Connection) Send(msg interface{}) {
-
 }

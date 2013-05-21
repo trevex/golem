@@ -39,7 +39,7 @@ type Hub struct {
 
 func (hub *Hub) remove(conn *Connection) {
 	delete(hub.connections, conn)
-	close(conn.out)
+	close(conn.Send)
 }
 
 func (hub *Hub) run() {
@@ -55,7 +55,7 @@ func (hub *Hub) run() {
 				case message := <-hub.broadcast:
 					for conn := range hub.connections {
 						select {
-						case conn.out <- message:
+						case conn.Send <- message:
 						default:
 							hub.remove(conn)
 						}
