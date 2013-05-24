@@ -31,9 +31,82 @@ type managedLobby struct {
 }
 
 type LobbyManager struct {
-	members  map[*Connection]map[*Lobby]bool
+	members  map[*Connection]map[string]bool
 	lobbies  map[string]*managedLobby
 	join     chan *lobbyReq
 	leave    chan *lobbyReq
 	leaveAll chan *Connection
+	stop     chan bool
+}
+
+func NewLobbyManager() *LobbyManager {
+	lm := LobbyManager{
+		members:  make(map[*Connection]map[string]bool),
+		lobbies:  make(map[string]*managedLobby),
+		join:     make(chan *lobbyReq),
+		leave:    make(chan *lobbyReq),
+		leaveAll: make(chan *Connection),
+		stop:     make(chan bool),
+	}
+	go lm.run()
+	return &lm
+}
+
+func (lm *LobbyManager) leaveLobbyByName(name string, conn *Connection) {
+	m, ok := lm.lobbies[name]
+	if ok {
+		m.lobby.leave <- conn
+		m.count--
+		if m.count == 0 {
+			m.lobby.Stop()
+			delete(lm.lobbies, name)
+		}
+	}
+}
+
+func (lm *LobbyManager) run() {
+	for {
+		select {
+		case req := <-lm.join:
+			m, ok := lm.lobbies[req.name]
+			if !ok {
+				m = &managedLobby{
+					lobby: NewLobby(),
+					count: 1,
+				}
+			} else {
+				m.count++
+			}
+			m.lobby.join <- req.conn
+			lm.members[req.conn][req.name] = true
+		case req := <-lm.leave:
+			lm.leaveLobbyByName(req.name, req.conn)
+		case conn := <-lm.leaveAll:
+			if cm, ok := lm.members[conn]; ok {
+				for name := range cm {
+					lm.leaveLobbyByName(name, conn)
+				}
+			}
+		case <-lm.stop:
+			return
+		}
+	}
+}
+
+func (lm *LobbyManager) Join(name string, conn *Connection) {
+	lm.join <- &lobbyReq{
+		name: name,
+		conn: conn,
+	}
+}
+
+func (lm *LobbyManager) Leave(name string, conn *Connection) {
+	lm.leave <- &lobbyReq{
+		name: name,
+		conn: conn,
+	}
+}
+
+func (lm *LobbyManager) LeaveAll(conn *Connection) {
+	lm.leaveAll <- conn
 }

@@ -64,7 +64,7 @@ func (l *Lobby) run() {
 	}
 }
 
-func (l *Lobby) Remove() {
+func (l *Lobby) Stop() {
 	l.stop <- true
 }
 
