@@ -23,18 +23,18 @@ package golem
 type Lobby struct {
 	members map[*Connection]bool
 	stop    chan bool
-	Join    chan *Connection
-	Leave   chan *Connection
-	Send    chan []byte
+	join    chan *Connection
+	leave   chan *Connection
+	send    chan []byte
 }
 
 func NewLobby() *Lobby {
 	l := Lobby{
 		members: make(map[*Connection]bool),
 		stop:    make(chan bool),
-		Join:    make(chan *Connection),
-		Leave:   make(chan *Connection),
-		Send:    make(chan []byte),
+		join:    make(chan *Connection),
+		leave:   make(chan *Connection),
+		send:    make(chan []byte),
 	}
 	go l.run()
 	return &l
@@ -43,17 +43,17 @@ func NewLobby() *Lobby {
 func (l *Lobby) run() {
 	for {
 		select {
-		case conn := <-l.Join:
+		case conn := <-l.join:
 			l.members[conn] = true
-		case conn := <-l.Leave:
+		case conn := <-l.leave:
 			_, ok := l.members[conn]
 			if ok {
 				delete(l.members, conn)
 			}
-		case message := <-l.Send:
+		case message := <-l.send:
 			for conn := range l.members {
 				select {
-				case conn.Send <- message:
+				case conn.send <- message:
 				default:
 					delete(l.members, conn)
 				}
@@ -66,4 +66,16 @@ func (l *Lobby) run() {
 
 func (l *Lobby) Remove() {
 	l.stop <- true
+}
+
+func (l *Lobby) Join(conn *Connection) {
+	l.join <- conn
+}
+
+func (l *Lobby) Leave(conn *Connection) {
+	l.leave <- conn
+}
+
+func (l *Lobby) Send(data []byte) {
+	l.send <- data
 }

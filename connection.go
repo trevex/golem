@@ -48,14 +48,14 @@ type Connection struct {
 	// Associated router.
 	router *Router
 	// Buffered channel of outbound messages.
-	Send chan []byte
+	send chan []byte
 }
 
 func newConnection(s *websocket.Conn, r *Router) *Connection {
 	return &Connection{
 		socket: s,
 		router: r,
-		Send:   make(chan []byte, sendChannelSize),
+		send:   make(chan []byte, sendChannelSize),
 	}
 }
 
@@ -101,7 +101,7 @@ func (conn *Connection) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-conn.Send:
+		case message, ok := <-conn.send:
 			if !ok {
 				conn.write(websocket.OpClose, []byte{})
 				return
