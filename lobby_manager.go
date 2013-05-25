@@ -20,9 +20,18 @@
 
 package golem
 
+import (
+	"fmt"
+)
+
 type lobbyReq struct {
 	name string
 	conn *Connection
+}
+
+type lobbyMsg struct {
+	to   string
+	data []byte
 }
 
 type managedLobby struct {
@@ -36,6 +45,7 @@ type LobbyManager struct {
 	join     chan *lobbyReq
 	leave    chan *lobbyReq
 	leaveAll chan *Connection
+	send     chan *lobbyMsg
 	stop     chan bool
 }
 
@@ -46,6 +56,7 @@ func NewLobbyManager() *LobbyManager {
 		join:     make(chan *lobbyReq),
 		leave:    make(chan *lobbyReq),
 		leaveAll: make(chan *Connection),
+		send:     make(chan *lobbyMsg),
 		stop:     make(chan bool),
 	}
 	go lm.run()
@@ -68,26 +79,42 @@ func (lm *LobbyManager) run() {
 	for {
 		select {
 		case req := <-lm.join:
+			fmt.Println("Someone joining", req.name)
 			m, ok := lm.lobbies[req.name]
 			if !ok {
 				m = &managedLobby{
 					lobby: NewLobby(),
 					count: 1,
 				}
+				lm.lobbies[req.name] = m
 			} else {
 				m.count++
 			}
 			m.lobby.join <- req.conn
+			if _, ok := lm.members[req.conn]; !ok {
+				lm.members[req.conn] = make(map[string]bool)
+			}
 			lm.members[req.conn][req.name] = true
 		case req := <-lm.leave:
+			fmt.Println("Someone leaving", req.name)
 			lm.leaveLobbyByName(req.name, req.conn)
 		case conn := <-lm.leaveAll:
 			if cm, ok := lm.members[conn]; ok {
 				for name := range cm {
 					lm.leaveLobbyByName(name, conn)
 				}
+				delete(lm.members, conn)
+			}
+		case msg := <-lm.send:
+			fmt.Println("Someone sending to", msg.to)
+			if m, ok := lm.lobbies[msg.to]; ok {
+				m.lobby.send <- msg.data
 			}
 		case <-lm.stop:
+			for k, m := range lm.lobbies {
+				m.lobby.Stop()
+				delete(lm.lobbies, k)
+			}
 			return
 		}
 	}
@@ -109,4 +136,15 @@ func (lm *LobbyManager) Leave(name string, conn *Connection) {
 
 func (lm *LobbyManager) LeaveAll(conn *Connection) {
 	lm.leaveAll <- conn
+}
+
+func (lm *LobbyManager) Send(to string, data []byte) {
+	lm.send <- &lobbyMsg{
+		to:   to,
+		data: data,
+	}
+}
+
+func (lm *LobbyManager) Stop() {
+	lm.stop <- true
 }
