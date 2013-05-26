@@ -145,6 +145,15 @@ func (lm *LobbyManager) Send(to string, data []byte) {
 	}
 }
 
+func (lm *LobbyManager) Emit(to string, what string, data interface{}) {
+	if b, ok := pack(what, data); ok {
+		lm.send <- &lobbyMsg{
+			to:   to,
+			data: b,
+		}
+	}
+}
+
 func (lm *LobbyManager) Stop() {
 	lm.stop <- true
 }

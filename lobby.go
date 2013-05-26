@@ -79,3 +79,9 @@ func (l *Lobby) Leave(conn *Connection) {
 func (l *Lobby) Send(data []byte) {
 	l.send <- data
 }
+
+func (l *Lobby) Emit(what string, data interface{}) {
+	if b, ok := pack(what, data); ok {
+		l.send <- b
+	}
+}

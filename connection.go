@@ -116,3 +116,13 @@ func (conn *Connection) writePump() {
 		}
 	}
 }
+
+func (conn *Connection) Send(data []byte) {
+	conn.send <- data
+}
+
+func (conn *Connection) Emit(what string, data interface{}) {
+	if b, ok := pack(what, data); ok {
+		conn.send <- b
+	}
+}
