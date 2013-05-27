@@ -37,14 +37,16 @@ const (
 type Router struct {
 	callbacks map[string]func(*Connection, []byte)
 
-	closeCallback func(*Connection)
+	closeCallback     func(*Connection)
+	handshakeCallback func(http.ResponseWriter, *http.Request) bool
 }
 
 func NewRouter() *Router {
 	hub.run()
 	return &Router{
-		callbacks:     make(map[string]func(*Connection, []byte)),
-		closeCallback: func(*Connection) {},
+		callbacks:         make(map[string]func(*Connection, []byte)),
+		closeCallback:     func(*Connection) {},
+		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true },
 	}
 }
 
@@ -58,6 +60,11 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 
 		if r.Header.Get("Origin") != "http://"+r.Host {
 			http.Error(w, "Origin not allowed", 403)
+			return
+		}
+
+		if !router.handshakeCallback(w, r) {
+			http.Error(w, "Authorization failed", 403)
 			return
 		}
 
@@ -132,4 +139,8 @@ func (router *Router) parse(conn *Connection, rawdata []byte) {
 
 func (router *Router) OnClose(callback func(*Connection)) {
 	router.closeCallback = callback
+}
+
+func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Request) bool) {
+	router.handshakeCallback = callback
 }
