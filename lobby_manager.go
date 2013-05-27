@@ -20,10 +20,6 @@
 
 package golem
 
-import (
-	"fmt"
-)
-
 type lobbyReq struct {
 	name string
 	conn *Connection
@@ -79,7 +75,6 @@ func (lm *LobbyManager) run() {
 	for {
 		select {
 		case req := <-lm.join:
-			fmt.Println("Someone joining", req.name)
 			m, ok := lm.lobbies[req.name]
 			if !ok {
 				m = &managedLobby{
@@ -96,7 +91,6 @@ func (lm *LobbyManager) run() {
 			}
 			lm.members[req.conn][req.name] = true
 		case req := <-lm.leave:
-			fmt.Println("Someone leaving", req.name)
 			lm.leaveLobbyByName(req.name, req.conn)
 		case conn := <-lm.leaveAll:
 			if cm, ok := lm.members[conn]; ok {
@@ -106,7 +100,6 @@ func (lm *LobbyManager) run() {
 				delete(lm.members, conn)
 			}
 		case msg := <-lm.send:
-			fmt.Println("Someone sending to", msg.to)
 			if m, ok := lm.lobbies[msg.to]; ok {
 				m.lobby.send <- msg.data
 			}
