@@ -37,11 +37,10 @@ const (
 	maxMessageSize = 512
 	// Outgoing default channel size.
 	sendChannelSize = 512
-	// Default lobby capacity
-	lobbyDefaultCapacity = 3
 )
 
-// connection is an middleman between the websocket connection and the hub.
+// Connection holds information about the underlying WebSocket-Connection,
+// the associated router and the outgoing data channel.
 type Connection struct {
 	// The websocket connection.
 	socket *websocket.Conn
@@ -51,6 +50,7 @@ type Connection struct {
 	send chan []byte
 }
 
+// Create a new connection using the specified socket and router.
 func newConnection(s *websocket.Conn, r *Router) *Connection {
 	return &Connection{
 		socket: s,
@@ -117,10 +117,19 @@ func (conn *Connection) writePump() {
 	}
 }
 
+// Register connection and start writing and reading loops.
+func (conn *Connection) run() {
+	hub.register <- conn
+	go conn.writePump()
+	conn.readPump()
+}
+
+// Send an array of bytes to specified connection.
 func (conn *Connection) Send(data []byte) {
 	conn.send <- data
 }
 
+// Emit event with provided data. The data will be automatically marshalled.
 func (conn *Connection) Emit(what string, data interface{}) {
 	if b, ok := pack(what, data); ok {
 		conn.send <- b

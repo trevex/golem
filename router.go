@@ -79,10 +79,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		conn := newConnection(socket, router)
-
-		hub.register <- conn
-		go conn.writePump()
-		conn.readPump()
+		conn.run()
 	}
 }
 

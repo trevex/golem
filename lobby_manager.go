@@ -20,18 +20,27 @@
 
 package golem
 
+// Lobby request information holding name of the lobby and the connection, which requested.
 type lobbyReq struct {
+	// Name of the lobby the request goes to.
 	name string
+	// Reference to the connection, which requested.
 	conn *Connection
 }
 
+// Lobby messages contain information about to which lobby it is being send and the data being send.
 type lobbyMsg struct {
-	to   string
+	// Name of the lobby the message goes to.
+	to string
+	// Data being send to specified lobby.
 	data []byte
 }
 
+// Wrapper for normal lobbies to add a member counter.
 type managedLobby struct {
+	// Reference to lobby.
 	lobby *Lobby
+	// Member-count to allow removing of empty lobbies.
 	count uint
 }
 
