@@ -22,6 +22,11 @@ package golem
 
 import (
 	"encoding/json"
+	"strings"
+)
+
+const (
+	protocolSeperator = " "
 )
 
 func pack(name string, data interface{}) ([]byte, bool) {
@@ -32,4 +37,9 @@ func pack(name string, data interface{}) ([]byte, bool) {
 	}
 	result = append(result, b...)
 	return result, true
+}
+
+func unpack(in []byte) (string, []byte) {
+	data := strings.SplitN(string(in), protocolSeperator, 2)
+	return data[0], []byte(data[1])
 }

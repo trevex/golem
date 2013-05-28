@@ -27,11 +27,6 @@ import (
 	"log"
 	"net/http"
 	"reflect"
-	"strings"
-)
-
-const (
-	protocolSeperator = " "
 )
 
 type Router struct {
@@ -124,11 +119,10 @@ func (router *Router) On(name string, callback interface{}) {
 	router.callbacks[name] = unmarshalThenCallback
 }
 
-func (router *Router) parse(conn *Connection, rawdata []byte) {
-	rawstring := string(rawdata)
-	data := strings.SplitN(rawstring, protocolSeperator, 2)
-	if callback, ok := router.callbacks[data[0]]; ok {
-		callback(conn, []byte(data[1]))
+func (router *Router) parse(conn *Connection, in []byte) {
+	name, data := unpack(in)
+	if callback, ok := router.callbacks[name]; ok {
+		callback(conn, data)
 	}
 
 	defer recover()

@@ -44,17 +44,29 @@ type managedLobby struct {
 	count uint
 }
 
+// Handles any count of lobbies by keys. Currently only strings are supported as keys (lobby names).
+// As soon as generics are supported any key should be able to be used. The methods are used similar to
+// single lobby instance but preceded by the key.
 type LobbyManager struct {
-	members  map[*Connection]map[string]bool
-	lobbies  map[string]*managedLobby
-	join     chan *lobbyReq
-	leave    chan *lobbyReq
+	// Map of connections mapped to lobbies joined; necessary for leave all/clean up functionality.
+	members map[*Connection]map[string]bool
+	// Map of all managed lobbies with their names as keys.
+	lobbies map[string]*managedLobby
+	// Channel of join requests.
+	join chan *lobbyReq
+	// Channel of leave requests.
+	leave chan *lobbyReq
+	// Channel of leave all requests, essentially cleaning up every trace of the specified connection.
 	leaveAll chan *Connection
-	send     chan *lobbyMsg
-	stop     chan bool
+	// Channel of messages associated with this lobby manager
+	send chan *lobbyMsg
+	// Stop signal channel
+	stop chan bool
 }
 
+// Creates a new LobbyManager-Instance.
 func NewLobbyManager() *LobbyManager {
+	// Create instance.
 	lm := LobbyManager{
 		members:  make(map[*Connection]map[string]bool),
 		lobbies:  make(map[string]*managedLobby),
@@ -64,56 +76,71 @@ func NewLobbyManager() *LobbyManager {
 		send:     make(chan *lobbyMsg),
 		stop:     make(chan bool),
 	}
+	// Start message loop in new routine.
 	go lm.run()
+	// Return reference to this lobby manager.
 	return &lm
 }
 
+// Helper function to leave a lobby by name. If specified lobby has
+// no members after leaving, it will be cleaned up.
 func (lm *LobbyManager) leaveLobbyByName(name string, conn *Connection) {
-	m, ok := lm.lobbies[name]
-	if ok {
-		m.lobby.leave <- conn
-		m.count--
-		if m.count == 0 {
-			m.lobby.Stop()
-			delete(lm.lobbies, name)
+	if m, ok := lm.lobbies[name]; ok { // Continue if getting the lobby was ok.
+		if _, ok := lm.members[conn]; ok { // Continue if connection has map of joined lobbies.
+			if _, ok := lm.members[conn][name]; ok { // Continue if connection actually joined specified lobby.
+				m.lobby.leave <- conn
+				m.count--
+				delete(lm.members[conn], name)
+				if m.count == 0 { // Get rid of lobby if it is empty
+					m.lobby.Stop()
+					delete(lm.lobbies, name)
+				}
+			}
 		}
 	}
 }
 
+// Run should always be executed in a new goroutine, because it contains the
+// message loop.
 func (lm *LobbyManager) run() {
 	for {
 		select {
+		// Join
 		case req := <-lm.join:
 			m, ok := lm.lobbies[req.name]
-			if !ok {
+			if !ok { // If lobby was not found for join request, create it!
 				m = &managedLobby{
 					lobby: NewLobby(),
-					count: 1,
+					count: 1, // start with count 1 for first user
 				}
 				lm.lobbies[req.name] = m
-			} else {
+			} else { // If lobby exists increase count and join.
 				m.count++
 			}
 			m.lobby.join <- req.conn
-			if _, ok := lm.members[req.conn]; !ok {
+			if _, ok := lm.members[req.conn]; !ok { // If lobby association map for connection does not exist, create it!
 				lm.members[req.conn] = make(map[string]bool)
 			}
-			lm.members[req.conn][req.name] = true
+			lm.members[req.conn][req.name] = true // Flag this lobby on members lobby map.
+		// Leave
 		case req := <-lm.leave:
 			lm.leaveLobbyByName(req.name, req.conn)
+		// Leave all
 		case conn := <-lm.leaveAll:
 			if cm, ok := lm.members[conn]; ok {
-				for name := range cm {
+				for name := range cm { // Iterate over all lobbies this connection joined and leave them.
 					lm.leaveLobbyByName(name, conn)
 				}
-				delete(lm.members, conn)
+				delete(lm.members, conn) // Remove map of joined lobbies
 			}
+		// Send
 		case msg := <-lm.send:
-			if m, ok := lm.lobbies[msg.to]; ok {
+			if m, ok := lm.lobbies[msg.to]; ok { // If lobby exists, get it and send data to it.
 				m.lobby.send <- msg.data
 			}
+		// Stop
 		case <-lm.stop:
-			for k, m := range lm.lobbies {
+			for k, m := range lm.lobbies { // Stop all lobbies!
 				m.lobby.Stop()
 				delete(lm.lobbies, k)
 			}
@@ -122,6 +149,7 @@ func (lm *LobbyManager) run() {
 	}
 }
 
+//
 func (lm *LobbyManager) Join(name string, conn *Connection) {
 	lm.join <- &lobbyReq{
 		name: name,
