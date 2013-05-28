@@ -149,7 +149,7 @@ func (lm *LobbyManager) run() {
 	}
 }
 
-//
+// The connection joins the lobby with the specified name.
 func (lm *LobbyManager) Join(name string, conn *Connection) {
 	lm.join <- &lobbyReq{
 		name: name,
@@ -157,6 +157,7 @@ func (lm *LobbyManager) Join(name string, conn *Connection) {
 	}
 }
 
+// The connection leaves the lobby with the specified name.
 func (lm *LobbyManager) Leave(name string, conn *Connection) {
 	lm.leave <- &lobbyReq{
 		name: name,
@@ -164,10 +165,13 @@ func (lm *LobbyManager) Leave(name string, conn *Connection) {
 	}
 }
 
+// The connection leaves all lobbies of this manager. This is important for clean up purposes to
+// keep the member count accurate. This should therefore always be called when a connection is closed.
 func (lm *LobbyManager) LeaveAll(conn *Connection) {
 	lm.leaveAll <- conn
 }
 
+// Send an array of bytes to all members of the lobby with the specified name.
 func (lm *LobbyManager) Send(to string, data []byte) {
 	lm.send <- &lobbyMsg{
 		to:   to,
@@ -175,6 +179,8 @@ func (lm *LobbyManager) Send(to string, data []byte) {
 	}
 }
 
+// Emit a message, that can be fetched using the golem client library. The provided
+// data interface will be automatically marshalled into JSON.
 func (lm *LobbyManager) Emit(to string, what string, data interface{}) {
 	if b, ok := pack(what, data); ok {
 		lm.send <- &lobbyMsg{
@@ -184,6 +190,7 @@ func (lm *LobbyManager) Emit(to string, what string, data interface{}) {
 	}
 }
 
+// Stop the message loop.
 func (lm *LobbyManager) Stop() {
 	lm.stop <- true
 }
