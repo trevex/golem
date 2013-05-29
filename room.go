@@ -20,9 +20,9 @@
 
 package golem
 
-// Lobby holds all channels necessary to handle a single lobby instance.
-// The struct should not be directly instanced rather NewLobby() should be used.
-type Lobby struct {
+// A room is a group of connections, to allow broadcasting to groups.
+//
+type Room struct {
 	// Map of member connections
 	members map[*Connection]bool
 	// Stop channel
@@ -35,9 +35,9 @@ type Lobby struct {
 	send chan []byte
 }
 
-// Creates and initialised lobby and returns pointer to it.
-func NewLobby() *Lobby {
-	l := Lobby{
+// Creates and initialised a room and returns pointer to it.
+func NewRoom() *Room {
+	r := Room{
 		members: make(map[*Connection]bool),
 		stop:    make(chan bool),
 		join:    make(chan *Connection),
@@ -45,62 +45,62 @@ func NewLobby() *Lobby {
 		send:    make(chan []byte),
 	}
 	// Run the message loop
-	go l.run()
+	go r.run()
 	// Return pointer
-	return &l
+	return &r
 }
 
-// Starts the message loop of this lobby, should only be run once and in a different routine.
-func (l *Lobby) run() {
+// Starts the message loop of this room, should only be run once and in a different routine.
+func (r *Room) run() {
 	for {
 		select {
 		// Join
-		case conn := <-l.join:
-			l.members[conn] = true
+		case conn := <-r.join:
+			r.members[conn] = true
 		// Leave
-		case conn := <-l.leave:
-			if _, ok := l.members[conn]; ok { // If member exists, delete it
-				delete(l.members, conn)
+		case conn := <-r.leave:
+			if _, ok := r.members[conn]; ok { // If member exists, delete it
+				delete(r.members, conn)
 			}
 		// Send
-		case message := <-l.send:
-			for conn := range l.members { // For every connection try to send
+		case message := <-r.send:
+			for conn := range r.members { // For every connection try to send
 				select {
 				case conn.send <- message:
 				default: // If sending failed, delete member
-					delete(l.members, conn)
+					delete(r.members, conn)
 				}
 			}
 		// Stop
-		case <-l.stop:
+		case <-r.stop:
 			return
 		}
 	}
 }
 
 // Stops the message queue.
-func (l *Lobby) Stop() {
-	l.stop <- true
+func (r *Room) Stop() {
+	r.stop <- true
 }
 
-// The specified connection joins the lobby.
-func (l *Lobby) Join(conn *Connection) {
-	l.join <- conn
+// The specified connection joins the room.
+func (r *Room) Join(conn *Connection) {
+	r.join <- conn
 }
 
-// If the specified connection is member of the lobby, the connection will leave it.
-func (l *Lobby) Leave(conn *Connection) {
-	l.leave <- conn
+// If the specified connection is member of the room, the connection will leave it.
+func (r *Room) Leave(conn *Connection) {
+	r.leave <- conn
 }
 
 // Send an array of bytes to every member of the channel.
-func (l *Lobby) Send(data []byte) {
-	l.send <- data
+func (r *Room) Send(data []byte) {
+	r.send <- data
 }
 
 // Emits message event to all members of the channel.
-func (l *Lobby) Emit(what string, data interface{}) {
+func (r *Room) Emit(what string, data interface{}) {
 	if b, ok := pack(what, data); ok {
-		l.send <- b
+		r.send <- b
 	}
 }
