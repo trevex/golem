@@ -18,7 +18,7 @@ The client is still in work, but is already used in the examples and is availabl
 
 Documentation
 -------------------------
-
+The documentation is provided via [godoc](http://godoc.org/github.com/trevex/golem).
 
 Examples
 -------------------------
