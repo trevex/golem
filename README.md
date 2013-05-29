@@ -28,7 +28,7 @@ to use them is located in their repository.
 
 Special thanks
 -------------------------
-* [Gary Bird](http://gary.beagledreams.com/) (for the great WebSocket protocol implementation and insights through his examples)
+* [Gary Burd](http://gary.beagledreams.com/) (for the great WebSocket protocol implementation and insights through his examples)
 * [Andrew Gallant](http://burntsushi.net/) (for help on golang-nuts mailing list)
 * [Kortschak](https://github.com/kortschak) (for help on golang-nuts mailing list)
 
