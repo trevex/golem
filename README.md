@@ -6,6 +6,14 @@ License
 -------------------------
 Golem is available under the  [GPLv3 License](http://www.gnu.org/licenses/gpl.html)
 
+Client
+-------------------------
+The client is still in work, but is already used in the examples and is available [here](https://github.com/trevex/golem_client).
+
+Documentation
+-------------------------
+
+
 Examples
 -------------------------
 Several examples are available in the [example repository](https://github.com/trevex/golem_examples). To use them simply checkout the

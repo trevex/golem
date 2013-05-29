@@ -21,28 +21,36 @@
 package golem
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 )
 
+// Package-intern map of parser callbacks
 var parserMap map[reflect.Type]reflect.Value = make(map[reflect.Type]reflect.Value)
 
-func AddParser(parserFn interface{}) {
+// The AddParser-function allows adding of custom parsers for custom types. For any Type T
+// the parser function would look like this:
+//      func ([]byte) (T, bool)
+// If the parser function does not follow this guideline an error is returned. The boolean is
+// necessary to verify if parsing was successful.
+// All On-handling function accepting T as input data will now automatically use the custom
+// parser, e.g:
+//      func (conn *golem.Connection, data string)
+func AddParser(parserFn interface{}) error {
 	parserValue := reflect.ValueOf(parserFn)
 	parserType := parserValue.Type()
 
 	if parserType.NumIn() != 1 {
-		fmt.Println("Cannot add function(", parserType, ") as parser: To many arguments!")
-		return
+		return errors.New("Cannot add function(" + parserType.String() + ") as parser: To many arguments!")
 	}
 	if parserType.NumOut() != 2 {
-		fmt.Println("Cannot add function(", parserType, ") as parser: Wrong number of return values!")
-		return
+		return errors.New("Cannot add function(" + parserType.String() + ") as parser: Wrong number of return values!")
 	}
 	if parserType.Out(1).Kind() != reflect.Bool {
-		fmt.Println("Cannot add function(", parserType, ") as parser: Second return value is not Bool!")
-		return
+		return errors.New("Cannot add function(" + parserType.String() + ") as parser: Second return value is not Bool!")
 	}
 
 	parserMap[parserType.Out(0)] = parserValue
+
+	return nil
 }

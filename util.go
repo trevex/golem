@@ -29,6 +29,7 @@ const (
 	protocolSeperator = " "
 )
 
+// Marshal any data into json and prepend the name of the event.
 func pack(name string, data interface{}) ([]byte, bool) {
 	result := []byte(name + protocolSeperator)
 	b, err := json.Marshal(data)
@@ -39,6 +40,7 @@ func pack(name string, data interface{}) ([]byte, bool) {
 	return result, true
 }
 
+// Split the name of the event to get the raw data.
 func unpack(in []byte) (string, []byte) {
 	data := strings.SplitN(string(in), protocolSeperator, 2)
 	return data[0], []byte(data[1])
