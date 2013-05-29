@@ -93,7 +93,7 @@ func (l *Lobby) Leave(conn *Connection) {
 	l.leave <- conn
 }
 
-// Send an array of bytes to every member if the channel.
+// Send an array of bytes to every member of the channel.
 func (l *Lobby) Send(data []byte) {
 	l.send <- data
 }

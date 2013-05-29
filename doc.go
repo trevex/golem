@@ -22,4 +22,7 @@
 // Golem simplifies interaction with websockets by exposing an event-based system allowing
 // easy prototyping of WebSocket-interaction. To achieve this a simple extendable JSON-based
 // protocol is used, that is marshalled automatically into the desired types through reflection.
+//
+// Examples can be found in the example repository:
+// https://github.com/trevex/golem_examples
 package golem
