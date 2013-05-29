@@ -6,6 +6,12 @@ License
 -------------------------
 Golem is available under the  [GPLv3 License](http://www.gnu.org/licenses/gpl.html)
 
+Installation
+-------------------------
+```
+go get github.com/trevex/golem
+```
+
 Client
 -------------------------
 The client is still in work, but is already used in the examples and is available [here](https://github.com/trevex/golem_client).
