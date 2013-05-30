@@ -4,7 +4,7 @@ A lightweight Go WebSocket-framework.
 
 License
 -------------------------
-Golem is available under the  [GPLv3 License](http://www.gnu.org/licenses/gpl.html)
+Golem is available under the  [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 Installation
 -------------------------
