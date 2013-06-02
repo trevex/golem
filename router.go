@@ -93,6 +93,15 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 // If type T is []byte the incoming data will be directly forwarded!
 func (router *Router) On(name string, callback interface{}) {
 
+	// If callback function doesn't exept data
+	if reflect.TypeOf(callback).NumIn() == 1 {
+		router.callbacks[name] = func(conn *Connection, data []byte) {
+			callback.(func(*Connection))(conn)
+		}
+		return
+	}
+
+	// Type of callback function
 	callbackDataType := reflect.TypeOf(callback).In(1)
 
 	// If function accepts byte arrays, use NO parser
