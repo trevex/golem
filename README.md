@@ -20,6 +20,10 @@ Documentation
 -------------------------
 The documentation is provided via [godoc](http://godoc.org/github.com/trevex/golem).
 
+Wiki & Tutorials
+-------------------------
+More informations and insights can be found on the [wiki page](https://github.com/trevex/golem/wiki) along with a tutorial series to learn how to use golem.
+
 Examples
 -------------------------
 Several examples are available in the [example repository](https://github.com/trevex/golem_examples). To use them simply checkout the
