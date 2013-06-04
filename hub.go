@@ -26,7 +26,7 @@ type Hub struct {
 	connections map[*Connection]bool
 
 	// Inbound messages from the connections.
-	broadcast chan []byte
+	broadcast chan *message
 
 	// Register requests from the connections.
 	register chan *Connection
@@ -74,7 +74,7 @@ func (hub *Hub) run() {
 
 // Create the hub instance.
 var hub = Hub{
-	broadcast:   make(chan []byte),
+	broadcast:   make(chan *message),
 	register:    make(chan *Connection),
 	unregister:  make(chan *Connection),
 	connections: make(map[*Connection]bool),
@@ -86,14 +86,10 @@ func GetHub() *Hub {
 	return &hub
 }
 
-// Broadcast an array of bytes to all active connections.
-func (hub *Hub) Broadcast(data []byte) {
-	hub.broadcast <- data
-}
-
 // Broadcast event to all active connections.
-func (hub *Hub) BroadcastEmit(what string, data interface{}) {
-	if b, ok := pack(what, data); ok {
-		hub.broadcast <- b
+func (hub *Hub) Broadcast(event string, data interface{}) {
+	hub.broadcast <- &message{
+		event: event,
+		data:  data,
 	}
 }
