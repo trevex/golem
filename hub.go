@@ -91,7 +91,7 @@ func GetHub() *Hub {
 	return &hub
 }
 
-// Broadcast emits an event with data to all active connections.
+// Broadcast emits an event with data to ALL active connections.
 func (hub *Hub) Broadcast(event string, data interface{}) {
 	hub.broadcast <- &message{
 		event: event,
