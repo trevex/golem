@@ -31,15 +31,19 @@ var (
 // Protocol-interface provides the required methods necessary for any
 // protocol, that should be used with golem, to implement.
 // The evented system of golem needs several steps to process incoming data:
-// 1. Event name needs to be splitted/extracted from incoming data.
-// 2. After event is known, the second part of the data needs to be unmarshalled into the associated type.
+// 1. Unpack
+// 2. Unmarshal
 // For emitting data the process is reversed:
-// 1. Marshal data into byte array.
-// 2. Pack event name into byte array.
+// 1. Marshal
+// 2. Pack
 type Protocol interface {
+	// Unmarshals leftover data into associated type of callback.
 	Unmarshal([]byte, interface{}) error
+	// Marshal data into byte array
 	Marshal(interface{}) ([]byte, error)
+	// Unpack splits/extracts event name from incoming data.
 	Unpack([]byte) (string, []byte, error)
+	// Pack event name into byte array.
 	Pack(string, []byte) ([]byte, error)
 }
 
