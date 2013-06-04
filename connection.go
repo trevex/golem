@@ -125,7 +125,8 @@ func (conn *Connection) run() {
 	conn.readPump()
 }
 
-// Emit event with provided data. The data will be automatically marshalled.
+// Emit event with provided data. The data will be automatically marshalled and packed according
+// to the active protocol of the router the connection belongs to.
 func (conn *Connection) Emit(event string, data interface{}) {
 	conn.send <- &message{
 		event: event,
