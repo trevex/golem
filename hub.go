@@ -18,9 +18,14 @@
 
 package golem
 
-// The hub manages all active connection, but should only be used directly
-// if broadcasting of data or an event is desired. The hub should not be instanced
-// directly.
+const (
+	// Broadcast Channel Size
+	broadcastChannelSize = 16
+)
+
+// The Hub manages all active connection, but should only be used directly
+// if broadcasting of data or an event to all connections is desired.
+// The Hub should not be instanced directly.
 type Hub struct {
 	// Registered connections.
 	connections map[*Connection]bool
@@ -74,19 +79,19 @@ func (hub *Hub) run() {
 
 // Create the hub instance.
 var hub = Hub{
-	broadcast:   make(chan *message),
+	broadcast:   make(chan *message, broadcastChannelSize),
 	register:    make(chan *Connection),
 	unregister:  make(chan *Connection),
 	connections: make(map[*Connection]bool),
 	isRunning:   false,
 }
 
-// Retrieve pointer to the hub.
+// GetHub retrieves a pointer to the golem's active Hub.
 func GetHub() *Hub {
 	return &hub
 }
 
-// Broadcast event to all active connections.
+// Broadcast emits an event with data to all active connections.
 func (hub *Hub) Broadcast(event string, data interface{}) {
 	hub.broadcast <- &message{
 		event: event,

@@ -71,7 +71,7 @@ func NewRoomManager() *RoomManager {
 		join:     make(chan *roomReq),
 		leave:    make(chan *roomReq),
 		leaveAll: make(chan *Connection),
-		send:     make(chan *roomMsg),
+		send:     make(chan *roomMsg, roomSendChannelSize),
 		stop:     make(chan bool),
 	}
 	// Start message loop in new routine.

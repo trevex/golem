@@ -18,6 +18,10 @@
 
 package golem
 
+const (
+	roomSendChannelSize = 32
+)
+
 // A room is a group of connections, to allow broadcasting to groups.
 //
 type Room struct {
@@ -40,7 +44,7 @@ func NewRoom() *Room {
 		stop:    make(chan bool),
 		join:    make(chan *Connection),
 		leave:   make(chan *Connection),
-		send:    make(chan *message),
+		send:    make(chan *message, roomSendChannelSize),
 	}
 	// Run the message loop
 	go r.run()
