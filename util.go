@@ -23,10 +23,6 @@ import (
 	"strings"
 )
 
-const (
-	protocolSeperator = " "
-)
-
 // Marshal any data into json and prepend the name of the event.
 func pack(name string, data interface{}) ([]byte, bool) {
 	result := []byte(name + protocolSeperator)

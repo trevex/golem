@@ -129,7 +129,7 @@ func (conn *Connection) Send(data []byte) {
 
 // Emit event with provided data. The data will be automatically marshalled.
 func (conn *Connection) Emit(what string, data interface{}) {
-	if b, ok := pack(what, data); ok {
+	if b, err := conn.router.prepareDataForEmit(what, data); err == nil {
 		conn.send <- b
 	}
 }

@@ -19,7 +19,6 @@
 package golem
 
 import (
-	"encoding/json"
 	"github.com/garyburd/go-websocket/websocket"
 	"log"
 	"net/http"
@@ -34,6 +33,8 @@ type Router struct {
 	closeCallback func(*Connection)
 	// Function verifying handshake.
 	handshakeCallback func(http.ResponseWriter, *http.Request) bool
+	//
+	protocol Protocol
 }
 
 // Returns new router instance.
@@ -45,6 +46,7 @@ func NewRouter() *Router {
 		callbacks:         make(map[string]func(*Connection, []byte)),
 		closeCallback:     func(*Connection) {},                                          // Empty placeholder close function.
 		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
+		protocol:          initialProtocol,
 	}
 }
 
@@ -130,7 +132,7 @@ func (router *Router) On(name string, callback interface{}) {
 	unmarshalThenCallback := func(conn *Connection, data []byte) {
 		result := reflect.New(callbackDataElem)
 
-		err := json.Unmarshal(data, result.Interface())
+		err := router.protocol.Unmarshal(data, result.Interface())
 		if err == nil {
 			args := []reflect.Value{reflect.ValueOf(conn), result}
 			callbackValue.Call(args)
@@ -143,10 +145,11 @@ func (router *Router) On(name string, callback interface{}) {
 
 // Unpacks incoming data and forwards it to callback.
 func (router *Router) parse(conn *Connection, in []byte) {
-	name, data := unpack(in)
-	if callback, ok := router.callbacks[name]; ok {
-		callback(conn, data)
-	}
+	if name, data, err := router.protocol.Unpack(in); err == nil {
+		if callback, ok := router.callbacks[name]; ok {
+			callback(conn, data)
+		}
+	} // TODO: else error logging?
 
 	defer recover()
 }
@@ -159,4 +162,12 @@ func (router *Router) OnClose(callback func(*Connection)) {
 // Set the callback for handshake verfication.
 func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Request) bool) {
 	router.handshakeCallback = callback
+}
+
+func (router *Router) prepareDataForEmit(name string, data interface{}) ([]byte, error) {
+	if data, err := router.protocol.Marshal(data); err == nil {
+		return router.protocol.Pack(name, data)
+	} else {
+		return nil, err
+	}
 }
