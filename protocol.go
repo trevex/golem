@@ -57,7 +57,8 @@ const (
 	protocolSeperator = " "
 )
 
-// DefaultJSONProtocol is the initial protocol used by golem.
+// DefaultJSONProtocol is the initial protocol used by golem. It implements the
+// Protocol-Interface.
 // (Note: there is an article about this simple protocol in golem's wiki)
 type DefaultJSONProtocol struct{}
 
