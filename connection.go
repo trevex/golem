@@ -45,7 +45,7 @@ type Connection struct {
 	// Associated router.
 	router *Router
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan *message
 }
 
 // Create a new connection using the specified socket and router.
@@ -53,7 +53,7 @@ func newConnection(s *websocket.Conn, r *Router) *Connection {
 	return &Connection{
 		socket: s,
 		router: r,
-		send:   make(chan []byte, sendChannelSize),
+		send:   make(chan *message, sendChannelSize),
 	}
 }
 
@@ -100,11 +100,14 @@ func (conn *Connection) writePump() {
 	for {
 		select {
 		case message, ok := <-conn.send:
-			if !ok {
+			if ok {
+				if data, err := conn.router.prepareDataForEmit(message.event, message.data); err == nil {
+					if err := conn.write(websocket.OpText, data); err != nil {
+						return
+					}
+				}
+			} else {
 				conn.write(websocket.OpClose, []byte{})
-				return
-			}
-			if err := conn.write(websocket.OpText, message); err != nil {
 				return
 			}
 		case <-ticker.C:
@@ -122,14 +125,10 @@ func (conn *Connection) run() {
 	conn.readPump()
 }
 
-// Send an array of bytes to specified connection.
-func (conn *Connection) Send(data []byte) {
-	conn.send <- data
-}
-
 // Emit event with provided data. The data will be automatically marshalled.
-func (conn *Connection) Emit(what string, data interface{}) {
-	if b, err := conn.router.prepareDataForEmit(what, data); err == nil {
-		conn.send <- b
+func (conn *Connection) Emit(event string, data interface{}) {
+	conn.send <- &message{
+		event: event,
+		data:  data,
 	}
 }
