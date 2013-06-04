@@ -24,6 +24,10 @@ import (
 	"strings"
 )
 
+const (
+	protocolSeperator = " "
+)
+
 var (
 	initialProtocol Protocol = Protocol(&DefaultJSONProtocol{})
 )
@@ -53,10 +57,6 @@ func SetInitialProtocol(protocol Protocol) {
 	initialProtocol = protocol
 }
 
-const (
-	protocolSeperator = " "
-)
-
 // DefaultJSONProtocol is the initial protocol used by golem. It implements the
 // Protocol-Interface.
 // (Note: there is an article about this simple protocol in golem's wiki)
@@ -81,7 +81,7 @@ func (_ *DefaultJSONProtocol) Marshal(structPtr interface{}) ([]byte, error) {
 	return json.Marshal(structPtr)
 }
 
-// Adds the event name to the message.
+// Adds the event name to the message and returns it.
 func (_ *DefaultJSONProtocol) Pack(name string, data []byte) ([]byte, error) {
 	result := []byte(name + protocolSeperator)
 	result = append(result, data...)
