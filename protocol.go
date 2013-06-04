@@ -28,6 +28,14 @@ var (
 	initialProtocol Protocol = Protocol(&DefaultJSONProtocol{})
 )
 
+// Protocol-interface provides the required methods necessary for any
+// protocol, that should be used with golem, to implement.
+// The evented system of golem needs several steps to process incoming data:
+// 1. Event name needs to be splitted/extracted from incoming data.
+// 2. After event is known, the second part of the data needs to be unmarshalled into the associated type.
+// For emitting data the process is reversed:
+// 1. Marshal data into byte array.
+// 2. Pack event name into byte array.
 type Protocol interface {
 	Unmarshal([]byte, interface{}) error
 	Marshal(interface{}) ([]byte, error)
@@ -35,6 +43,8 @@ type Protocol interface {
 	Pack(string, []byte) ([]byte, error)
 }
 
+// SetInitialProtocol sets the initial protocol for router creation. Every router
+// created after changing the initial protocol will use the new protocol by default.
 func SetInitialProtocol(protocol Protocol) {
 	initialProtocol = protocol
 }
