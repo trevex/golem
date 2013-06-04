@@ -164,6 +164,10 @@ func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Reque
 	router.handshakeCallback = callback
 }
 
+func (router *Router) SetProtocol(protocol Protocol) {
+	router.protocol = protocol
+}
+
 func (router *Router) prepareDataForEmit(name string, data interface{}) ([]byte, error) {
 	if data, err := router.protocol.Marshal(data); err == nil {
 		return router.protocol.Pack(name, data)
