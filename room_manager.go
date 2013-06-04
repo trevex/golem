@@ -31,7 +31,7 @@ type roomMsg struct {
 	// Name of the room the message goes to.
 	to string
 	// Data being send to specified room.
-	data []byte
+	msg *message
 }
 
 // Wrapper for normal lobbies to add a member counter.
@@ -132,9 +132,9 @@ func (rm *RoomManager) run() {
 				delete(rm.members, conn) // Remove map of joined lobbies
 			}
 		// Send
-		case msg := <-rm.send:
-			if m, ok := rm.rooms[msg.to]; ok { // If room exists, get it and send data to it.
-				m.room.send <- msg.data
+		case rMsg := <-rm.send:
+			if m, ok := rm.rooms[rMsg.to]; ok { // If room exists, get it and send data to it.
+				m.room.send <- rMsg.msg
 			}
 		// Stop
 		case <-rm.stop:
@@ -169,22 +169,15 @@ func (rm *RoomManager) LeaveAll(conn *Connection) {
 	rm.leaveAll <- conn
 }
 
-// Send an array of bytes to all members of the room with the specified name.
-func (rm *RoomManager) Send(to string, data []byte) {
-	rm.send <- &roomMsg{
-		to:   to,
-		data: data,
-	}
-}
-
 // Emit a message, that can be fetched using the golem client library. The provided
-// data interface will be automatically marshalled into JSON.
-func (rm *RoomManager) Emit(to string, what string, data interface{}) {
-	if b, ok := pack(what, data); ok {
-		rm.send <- &roomMsg{
-			to:   to,
-			data: b,
-		}
+// data interface will be automatically marshalled according to the active protocol.
+func (rm *RoomManager) Emit(to string, event string, data interface{}) {
+	rm.send <- &roomMsg{
+		to: to,
+		msg: &message{
+			event: event,
+			data:  data,
+		},
 	}
 }
 

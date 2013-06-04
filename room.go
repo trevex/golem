@@ -29,8 +29,8 @@ type Room struct {
 	join chan *Connection
 	// Leave request
 	leave chan *Connection
-	// Broadcast to channel data
-	send chan []byte
+	// Broadcast to room members
+	send chan *message
 }
 
 // Creates and initialised a room and returns pointer to it.
@@ -40,7 +40,7 @@ func NewRoom() *Room {
 		stop:    make(chan bool),
 		join:    make(chan *Connection),
 		leave:   make(chan *Connection),
-		send:    make(chan []byte),
+		send:    make(chan *message),
 	}
 	// Run the message loop
 	go r.run()
@@ -91,14 +91,10 @@ func (r *Room) Leave(conn *Connection) {
 	r.leave <- conn
 }
 
-// Send an array of bytes to every member of the channel.
-func (r *Room) Send(data []byte) {
-	r.send <- data
-}
-
 // Emits message event to all members of the channel.
-func (r *Room) Emit(what string, data interface{}) {
-	if b, ok := pack(what, data); ok {
-		r.send <- b
+func (r *Room) Emit(event string, data interface{}) {
+	r.send <- &message{
+		event: event,
+		data:  data,
 	}
 }
