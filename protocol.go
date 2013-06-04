@@ -26,6 +26,8 @@ import (
 
 const (
 	protocolSeperator = " "
+	BinaryMode        = 1
+	TextMode          = 2
 )
 
 var (
@@ -40,6 +42,8 @@ var (
 // For emitting data the process is reversed:
 //  1. Marshal
 //  2. Pack
+// The GetReadMode and GetWriteMode functions define what kind of Operation-Code
+// the sockets will receive.
 type Protocol interface {
 	// Unpack splits/extracts event name from incoming data.
 	Unpack([]byte) (string, []byte, error)
@@ -49,6 +53,10 @@ type Protocol interface {
 	Marshal(interface{}) ([]byte, error)
 	// Pack event name into byte array.
 	Pack(string, []byte) ([]byte, error)
+	// Returns read mode, that should be used for this protocol.
+	GetReadMode() int
+	// Returns write mode, that should be used for this protocol
+	GetWriteMode() int
 }
 
 // SetInitialProtocol sets the initial protocol for router creation. Every router
@@ -86,4 +94,14 @@ func (_ *DefaultJSONProtocol) Pack(name string, data []byte) ([]byte, error) {
 	result := []byte(name + protocolSeperator)
 	result = append(result, data...)
 	return result, nil
+}
+
+// Return TextMode because JSON is transmitted using the text mode of WebSockets
+func (_ *DefaultJSONProtocol) GetReadMode() int {
+	return TextMode
+}
+
+// Return TextMode because JSON is transmitted using the text mode of WebSockets
+func (_ *DefaultJSONProtocol) GetWriteMode() int {
+	return TextMode
 }

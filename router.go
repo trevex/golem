@@ -33,8 +33,10 @@ type Router struct {
 	closeCallback func(*Connection)
 	// Function verifying handshake.
 	handshakeCallback func(http.ResponseWriter, *http.Request) bool
-	//
+	// Active protocol
 	protocol Protocol
+	// Flag to enable or disable heartbeats
+	useHeartbeats bool
 }
 
 // Returns new router instance.
@@ -47,6 +49,7 @@ func NewRouter() *Router {
 		closeCallback:     func(*Connection) {},                                          // Empty placeholder close function.
 		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:          initialProtocol,
+		useHeartbeats:     true,
 	}
 }
 
@@ -168,6 +171,11 @@ func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Reque
 // SetProtocol sets the protocol of the router to the supplied implementation of the Protocol interface.
 func (router *Router) SetProtocol(protocol Protocol) {
 	router.protocol = protocol
+}
+
+// Set
+func (router *Router) SetHeartbeat(flag bool) {
+	router.useHeartbeats = flag
 }
 
 // Packs and marshals data with active protocol and returns the array of bytes or an error.
