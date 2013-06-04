@@ -79,7 +79,7 @@ func (conn *Connection) readPump() {
 			if err != nil {
 				break
 			}
-			conn.router.parse(conn, message)
+			conn.router.processMessage(conn, message)
 		}
 	}
 }

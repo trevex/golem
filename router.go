@@ -93,6 +93,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 // specified type. If a custom parser is known for the specified type, it will be
 // used instead.
 // If type T is []byte the incoming data will be directly forwarded!
+// (Note: the golem wiki has a whole page about this function)
 func (router *Router) On(name string, callback interface{}) {
 
 	// If callback function doesn't exept data
@@ -144,7 +145,7 @@ func (router *Router) On(name string, callback interface{}) {
 }
 
 // Unpacks incoming data and forwards it to callback.
-func (router *Router) parse(conn *Connection, in []byte) {
+func (router *Router) processMessage(conn *Connection, in []byte) {
 	if name, data, err := router.protocol.Unpack(in); err == nil {
 		if callback, ok := router.callbacks[name]; ok {
 			callback(conn, data)
@@ -164,10 +165,12 @@ func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Reque
 	router.handshakeCallback = callback
 }
 
+// SetProtocol sets the protocol of the router to the supplied implementation of the Protocol interface.
 func (router *Router) SetProtocol(protocol Protocol) {
 	router.protocol = protocol
 }
 
+// Packs and marshals data with active protocol and returns the array of bytes or an error.
 func (router *Router) prepareDataForEmit(name string, data interface{}) ([]byte, error) {
 	if data, err := router.protocol.Marshal(data); err == nil {
 		return router.protocol.Pack(name, data)
