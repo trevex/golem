@@ -39,9 +39,9 @@ var (
 // The evented system of golem needs several steps to process incoming data:
 //  1. Unpack
 //  2. Unmarshal
-// For emitting data the process is reversed:
-//  1. Marshal
-//  2. Pack
+// For emitting data the process is reversed, but merged in a single function,
+// because evaluation the desired unmarshaled type is not necessary:
+//  1. MarshalAndPack
 // The GetReadMode and GetWriteMode functions define what kind of Operation-Code
 // the sockets will receive.
 type Protocol interface {
