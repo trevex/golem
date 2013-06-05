@@ -28,7 +28,7 @@ import (
 // Router handle multiplexing of incoming messenges by typename/event.
 type Router struct {
 	// Map of callbacks for event types.
-	callbacks map[string]func(*Connection, []byte)
+	callbacks map[string]func(*Connection, interface{})
 	// Function being called if connection is closed.
 	closeCallback func(*Connection)
 	// Function verifying handshake.
@@ -45,7 +45,7 @@ func NewRouter() *Router {
 	hub.run()
 	// Returns pointer to instance.
 	return &Router{
-		callbacks:         make(map[string]func(*Connection, []byte)),
+		callbacks:         make(map[string]func(*Connection, interface{})),
 		closeCallback:     func(*Connection) {},                                          // Empty placeholder close function.
 		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:          initialProtocol,
@@ -101,7 +101,7 @@ func (router *Router) On(name string, callback interface{}) {
 
 	// If callback function doesn't exept data
 	if reflect.TypeOf(callback).NumIn() == 1 {
-		router.callbacks[name] = func(conn *Connection, data []byte) {
+		router.callbacks[name] = func(conn *Connection, data interface{}) {
 			callback.(func(*Connection))(conn)
 		}
 		return
@@ -112,7 +112,10 @@ func (router *Router) On(name string, callback interface{}) {
 
 	// If function accepts byte arrays, use NO parser
 	if reflect.TypeOf([]byte{}) == callbackDataType {
-		router.callbacks[name] = callback.(func(*Connection, []byte))
+		assertByteArray := func(conn *Connection, data interface{}) {
+			callback.(func(*Connection, []byte))(conn, data.([]byte))
+		}
+		router.callbacks[name] = assertByteArray
 		return
 	}
 
@@ -121,7 +124,7 @@ func (router *Router) On(name string, callback interface{}) {
 
 	// If parser is available for this type, use it
 	if parser, ok := parserMap[callbackDataType]; ok {
-		parserThenCallback := func(conn *Connection, data []byte) {
+		parserThenCallback := func(conn *Connection, data interface{}) {
 			if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
 				args := []reflect.Value{reflect.ValueOf(conn), result[0]}
 				callbackValue.Call(args)
@@ -133,7 +136,7 @@ func (router *Router) On(name string, callback interface{}) {
 
 	// Else interpret data as JSON and try to unmarshal it into requested type
 	callbackDataElem := callbackDataType.Elem()
-	unmarshalThenCallback := func(conn *Connection, data []byte) {
+	unmarshalThenCallback := func(conn *Connection, data interface{}) {
 		result := reflect.New(callbackDataElem)
 
 		err := router.protocol.Unmarshal(data, result.Interface())

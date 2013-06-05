@@ -46,9 +46,9 @@ var (
 // the sockets will receive.
 type Protocol interface {
 	// Unpack splits/extracts event name from incoming data.
-	Unpack([]byte) (string, []byte, error)
+	Unpack([]byte) (string, interface{}, error)
 	// Unmarshals leftover data into associated type of callback.
-	Unmarshal([]byte, interface{}) error
+	Unmarshal(interface{}, interface{}) error
 	// Marshal and pack data into byte array
 	MarshalAndPack(string, interface{}) ([]byte, error)
 	// Returns read mode, that should be used for this protocol.
@@ -69,7 +69,7 @@ func SetInitialProtocol(protocol Protocol) {
 type DefaultJSONProtocol struct{}
 
 // Unpack splits the event name from the incoming message.
-func (_ *DefaultJSONProtocol) Unpack(data []byte) (string, []byte, error) {
+func (_ *DefaultJSONProtocol) Unpack(data []byte) (string, interface{}, error) {
 	result := strings.SplitN(string(data), protocolSeperator, 2)
 	if len(result) != 2 {
 		return "", nil, errors.New("Unable to extract event name from data.")
@@ -78,8 +78,8 @@ func (_ *DefaultJSONProtocol) Unpack(data []byte) (string, []byte, error) {
 }
 
 // Unmarshals data into requested structure. If not successful the function return an error.
-func (_ *DefaultJSONProtocol) Unmarshal(data []byte, structPtr interface{}) error {
-	return json.Unmarshal(data, structPtr)
+func (_ *DefaultJSONProtocol) Unmarshal(data interface{}, typePtr interface{}) error {
+	return json.Unmarshal(data.([]byte), typePtr)
 }
 
 // Marshals structure into JSON and pack event name in aswell. If not successful second return value is an error.
