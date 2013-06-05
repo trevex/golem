@@ -37,19 +37,23 @@ var (
 // Protocol-interface provides the required methods necessary for any
 // protocol, that should be used with golem, to implement.
 // The evented system of golem needs several steps to process incoming data:
-//  1. Unpack
-//  2. Unmarshal
+//  1. Unpack to extract the name of the event that was emitted.
+//  (golem no checks if an event handler exists, if does, the next method is called)
+//  2. Unmarshal the interstage product from unpack into the desired type.
 // For emitting data the process is reversed, but merged in a single function,
 // because evaluation the desired unmarshaled type is not necessary:
-//  1. MarshalAndPack
+//  1. MarshalAndPack marhals the data and the event name into an array of bytes.
 // The GetReadMode and GetWriteMode functions define what kind of Operation-Code
 // the sockets will receive.
 type Protocol interface {
 	// Unpack splits/extracts event name from incoming data.
+	// Takes incoming data bytes as parameter and returns the event name, interstage data and if an error occured the error.
 	Unpack([]byte) (string, interface{}, error)
 	// Unmarshals leftover data into associated type of callback.
+	// Takes interstage product and desired type as parameters and returns error if unsuccessful.
 	Unmarshal(interface{}, interface{}) error
 	// Marshal and pack data into byte array
+	// Takes event name and type pointer as parameters and returns byte array or error if unsuccessful.
 	MarshalAndPack(string, interface{}) ([]byte, error)
 	// Returns read mode, that should be used for this protocol.
 	GetReadMode() int
