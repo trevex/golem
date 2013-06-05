@@ -49,10 +49,8 @@ type Protocol interface {
 	Unpack([]byte) (string, []byte, error)
 	// Unmarshals leftover data into associated type of callback.
 	Unmarshal([]byte, interface{}) error
-	// Marshal data into byte array
-	Marshal(interface{}) ([]byte, error)
-	// Pack event name into byte array.
-	Pack(string, []byte) ([]byte, error)
+	// Marshal and pack data into byte array
+	MarshalAndPack(string, interface{}) ([]byte, error)
 	// Returns read mode, that should be used for this protocol.
 	GetReadMode() int
 	// Returns write mode, that should be used for this protocol
@@ -84,16 +82,15 @@ func (_ *DefaultJSONProtocol) Unmarshal(data []byte, structPtr interface{}) erro
 	return json.Unmarshal(data, structPtr)
 }
 
-// Marshals structure into JSON. If not successful second return value is an error.
-func (_ *DefaultJSONProtocol) Marshal(structPtr interface{}) ([]byte, error) {
-	return json.Marshal(structPtr)
-}
-
-// Adds the event name to the message and returns it.
-func (_ *DefaultJSONProtocol) Pack(name string, data []byte) ([]byte, error) {
-	result := []byte(name + protocolSeperator)
-	result = append(result, data...)
-	return result, nil
+// Marshals structure into JSON and pack event name in aswell. If not successful second return value is an error.
+func (_ *DefaultJSONProtocol) MarshalAndPack(name string, structPtr interface{}) ([]byte, error) {
+	if data, err := json.Marshal(structPtr); err != nil {
+		result := []byte(name + protocolSeperator)
+		result = append(result, data...)
+		return result, nil
+	} else {
+		return nil, err
+	}
 }
 
 // Return TextMode because JSON is transmitted using the text mode of WebSockets

@@ -180,9 +180,5 @@ func (router *Router) SetHeartbeat(flag bool) {
 
 // Packs and marshals data with active protocol and returns the array of bytes or an error.
 func (router *Router) prepareDataForEmit(name string, data interface{}) ([]byte, error) {
-	if data, err := router.protocol.Marshal(data); err == nil {
-		return router.protocol.Pack(name, data)
-	} else {
-		return nil, err
-	}
+	return router.protocol.MarshalAndPack(name, data)
 }
