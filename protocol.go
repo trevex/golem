@@ -38,7 +38,7 @@ var (
 // protocol, that should be used with golem, to implement.
 // The evented system of golem needs several steps to process incoming data:
 //  1. Unpack to extract the name of the event that was emitted.
-//  (golem no checks if an event handler exists, if does, the next method is called)
+//  (next golem checks if an event handler exists, if does, the next method is called)
 //  2. Unmarshal the interstage product from unpack into the desired type.
 // For emitting data the process is reversed, but merged in a single function,
 // because evaluation the desired unmarshaled type is not necessary:
