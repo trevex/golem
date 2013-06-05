@@ -140,7 +140,7 @@ func (conn *Connection) writePumpTextHeartbeat() {
 		select {
 		case message, ok := <-conn.send:
 			if ok {
-				if data, err := conn.router.prepareDataForEmit(message.event, message.data); err == nil {
+				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
 					if err := conn.write(websocket.OpText, data); err != nil {
 						return
 					}
@@ -193,7 +193,7 @@ func (conn *Connection) writePumpText() {
 		select {
 		case message, ok := <-conn.send:
 			if ok {
-				if data, err := conn.router.prepareDataForEmit(message.event, message.data); err == nil {
+				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
 					if err := conn.write(websocket.OpText, data); err != nil {
 						return
 					}
@@ -246,7 +246,7 @@ func (conn *Connection) writePumpBinaryHeartbeat() {
 		select {
 		case message, ok := <-conn.send:
 			if ok {
-				if data, err := conn.router.prepareDataForEmit(message.event, message.data); err == nil {
+				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
 					if err := conn.write(websocket.OpBinary, data); err != nil {
 						return
 					}
@@ -299,7 +299,7 @@ func (conn *Connection) writePumpBinary() {
 		select {
 		case message, ok := <-conn.send:
 			if ok {
-				if data, err := conn.router.prepareDataForEmit(message.event, message.data); err == nil {
+				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
 					if err := conn.write(websocket.OpBinary, data); err != nil {
 						return
 					}

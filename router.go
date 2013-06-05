@@ -107,20 +107,16 @@ func (router *Router) On(name string, callback interface{}) {
 		return
 	}
 
-	// Type of callback function
-	callbackDataType := reflect.TypeOf(callback).In(1)
-
-	// If function accepts byte arrays, use NO parser
-	if reflect.TypeOf([]byte{}) == callbackDataType {
-		assertByteArray := func(conn *Connection, data interface{}) {
-			callback.(func(*Connection, []byte))(conn, data.([]byte))
-		}
-		router.callbacks[name] = assertByteArray
+	// If function accepts interface, do not unmarshal
+	if cb, ok := callback.(func(*Connection, interface{})); ok {
+		router.callbacks[name] = cb
 		return
 	}
 
 	// Needed by custom and json parsers
 	callbackValue := reflect.ValueOf(callback)
+	// Type of data parameter of callback function
+	callbackDataType := reflect.TypeOf(callback).In(1)
 
 	// If parser is available for this type, use it
 	if parser, ok := parserMap[callbackDataType]; ok {
@@ -179,9 +175,4 @@ func (router *Router) SetProtocol(protocol Protocol) {
 // Set
 func (router *Router) SetHeartbeat(flag bool) {
 	router.useHeartbeats = flag
-}
-
-// Packs and marshals data with active protocol and returns the array of bytes or an error.
-func (router *Router) prepareDataForEmit(name string, data interface{}) ([]byte, error) {
-	return router.protocol.MarshalAndPack(name, data)
 }

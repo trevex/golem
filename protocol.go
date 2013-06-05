@@ -88,10 +88,9 @@ func (_ *DefaultJSONProtocol) Unmarshal(data interface{}, typePtr interface{}) e
 
 // Marshals structure into JSON and pack event name in aswell. If not successful second return value is an error.
 func (_ *DefaultJSONProtocol) MarshalAndPack(name string, structPtr interface{}) ([]byte, error) {
-	if data, err := json.Marshal(structPtr); err != nil {
+	if data, err := json.Marshal(structPtr); err == nil {
 		result := []byte(name + protocolSeperator)
-		result = append(result, data...)
-		return result, nil
+		return append(result, data...), nil
 	} else {
 		return nil, err
 	}
