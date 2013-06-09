@@ -19,6 +19,7 @@
 package golem
 
 import (
+	"errors"
 	"github.com/garyburd/go-websocket/websocket"
 	"log"
 	"net/http"
@@ -29,6 +30,8 @@ import (
 type Router struct {
 	// Map of callbacks for event types.
 	callbacks map[string]func(*Connection, interface{})
+	// Protocol extensions
+	extensions map[reflect.Type]reflect.Value
 	// Function being called if connection is closed.
 	closeCallback func(*Connection)
 	// Function verifying handshake.
@@ -46,6 +49,7 @@ func NewRouter() *Router {
 	// Returns pointer to instance.
 	return &Router{
 		callbacks:         make(map[string]func(*Connection, interface{})),
+		extensions:        make(map[reflect.Type]reflect.Value),
 		closeCallback:     func(*Connection) {},                                          // Empty placeholder close function.
 		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:          initialProtocol,
@@ -119,7 +123,7 @@ func (router *Router) On(name string, callback interface{}) {
 	callbackDataType := reflect.TypeOf(callback).In(1)
 
 	// If parser is available for this type, use it
-	if parser, ok := parserMap[callbackDataType]; ok {
+	if parser, ok := router.extensions[callbackDataType]; ok {
 		parserThenCallback := func(conn *Connection, data interface{}) {
 			if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
 				args := []reflect.Value{reflect.ValueOf(conn), result[0]}
@@ -165,6 +169,36 @@ func (router *Router) OnClose(callback func(*Connection)) {
 // Set the callback for handshake verfication.
 func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Request) bool) {
 	router.handshakeCallback = callback
+}
+
+// The ExtendProtocol-function allows adding of custom parsers for custom types. For any Type T
+// the parser function would look like this:
+//      func (interface{}) (T, bool)
+// The interface's type is depending on the interstage product of the active protocol, by default
+// for the JSON-based protocol it is []byte and therefore the function could be simplified to:
+//      func ([]byte) (T, bool)
+// Or in general if P is the interstage product:
+//      func (*P) (T, bool)
+// The boolean return value is necessary to verify if parsing was successful.
+// All On-handling function accepting T as input data will now automatically use the custom
+// extension. For an example see the example_data.go file in the example repository.
+func (router *Router) ExtendProtocol(extensionFunc interface{}) error {
+	extensionValue := reflect.ValueOf(extensionFunc)
+	extensionType := extensionValue.Type()
+
+	if extensionType.NumIn() != 1 {
+		return errors.New("Cannot add function(" + extensionType.String() + ") as parser: To many arguments!")
+	}
+	if extensionType.NumOut() != 2 {
+		return errors.New("Cannot add function(" + extensionType.String() + ") as parser: Wrong number of return values!")
+	}
+	if extensionType.Out(1).Kind() != reflect.Bool {
+		return errors.New("Cannot add function(" + extensionType.String() + ") as parser: Second return value is not Bool!")
+	}
+
+	router.extensions[extensionType.Out(0)] = extensionValue
+
+	return nil
 }
 
 // SetProtocol sets the protocol of the router to the supplied implementation of the Protocol interface.
