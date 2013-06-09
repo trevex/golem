@@ -16,11 +16,17 @@
 
 */
 
-// A lightweight WebSocket-framework.
-// Golem simplifies interaction with websockets by exposing an event-based system allowing
+// Golem is a lightweight WebSocket-framework.
+// it simplifies interaction with websockets by exposing an event-based system allowing
 // easy prototyping of WebSocket-interaction. To achieve this a simple extendable JSON-based
-// protocol is used, that is marshalled automatically into the desired types through reflection.
+// protocol is used by default, but custom protocol or simple protocol extensions are supported.
+//
+// For more general information, visit the wiki:
+// https://github.com/trevex/golem/wiki
 //
 // Examples can be found in the example repository:
 // https://github.com/trevex/golem_examples
+//
+// The client documentation and repository:
+// https://github.com/trevex/golem_client
 package golem
