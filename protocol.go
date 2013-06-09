@@ -25,11 +25,10 @@ import (
 )
 
 const (
-	// default seperator for JSON-based protocol
 	protocolSeperator = " "
 	// BinaryMode represents binary WebSocket operations
 	BinaryMode = 1
-	// TextMode represents text-base WebSocket operations
+	// TextMode represents text-based WebSocket operations
 	TextMode = 2
 )
 
