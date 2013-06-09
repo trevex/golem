@@ -25,12 +25,16 @@ import (
 )
 
 const (
+	// default seperator for JSON-based protocol
 	protocolSeperator = " "
-	BinaryMode        = 1
-	TextMode          = 2
+	// BinaryMode represents binary WebSocket operations
+	BinaryMode = 1
+	// TextMode represents text-base WebSocket operations
+	TextMode = 2
 )
 
 var (
+	// protocol routers will initially be using
 	initialProtocol Protocol = Protocol(&DefaultJSONProtocol{})
 )
 
@@ -61,7 +65,7 @@ type Protocol interface {
 	GetWriteMode() int
 }
 
-// SetInitialProtocol sets the initial protocol for router creation. Every router
+// SetInitialProtocol sets the protocol that should be used be newly created routers. Therefore every router
 // created after changing the initial protocol will use the new protocol by default.
 func SetInitialProtocol(protocol Protocol) {
 	initialProtocol = protocol
