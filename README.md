@@ -17,6 +17,38 @@ Client
 A [client](https://github.com/trevex/golem_client) is also available and heavily used in the [examples](https://github.com/trevex/golem_examples).
 More information on how the client is used can be found in the [client repository](https://github.com/trevex/golem_client).
 
+Simple Example
+-------------------------
+Server:
+```go
+type Hello struct {
+	From string `json:"from"`
+}
+type Answer struct {
+	Msg string `json:"msg"`
+}
+func hello(conn *golem.Connection, data *Hello) {
+	conn.Emit("answer", &Answer{"Thanks, "+ data.From + "!"})
+}
+func main() {
+	myrouter := golem.NewRouter()
+	myrouter.On("hello", hello)
+	http.HandleFunc("/ws", myrouter.Handler())
+	http.ListenAndServe(":8080", nil)
+}
+```
+Client:
+```javascript
+var conn = new golem.Connection("ws://127.0.0.1:8080/ws", true);
+conn.on("answer", function(data) {
+    console.log("Answer: "+data.msg);
+});
+conn.on("open", function() {
+    conn.emit("hello", { from: "Client" });
+});
+```
+Output in client console would be `Thanks, Client!`.
+
 Documentation
 -------------------------
 The documentation is provided via [godoc](http://godoc.org/github.com/trevex/golem).
@@ -31,7 +63,7 @@ More informations and insights can be found on the [wiki page](https://github.co
 * [Using flash as WebSocket fallback](https://github.com/trevex/golem/wiki/Using-flash-as-WebSocket-fallback)
 * [Custom protocol using BSON](https://github.com/trevex/golem/wiki/Custom-protocol-using-BSON)
 
-Examples
+More Examples
 -------------------------
 Several examples are available in the [example repository](https://github.com/trevex/golem_examples). To use them simply checkout the
 repository and make sure you installed (go get) golem before. A more detailed guide on how
