@@ -44,7 +44,7 @@ type managedRoom struct {
 
 // Handles any count of lobbies by keys. Currently only strings are supported as keys (room names).
 // As soon as generics are supported any key should be able to be used. The methods are used similar to
-// single room instance but preceded by the key.
+// single rooms but preceded by the key.
 type RoomManager struct {
 	// Map of connections mapped to lobbies joined; necessary for leave all/clean up functionality.
 	members map[*Connection]map[string]bool
@@ -62,7 +62,7 @@ type RoomManager struct {
 	stop chan bool
 }
 
-// Creates a new RoomManager-Instance.
+// NewRoomManager initialises a new instance and returns the a pointer to it.
 func NewRoomManager() *RoomManager {
 	// Create instance.
 	rm := RoomManager{
@@ -147,7 +147,7 @@ func (rm *RoomManager) run() {
 	}
 }
 
-// The connection joins the room with the specified name.
+// Join adds the connection to the specified room.
 func (rm *RoomManager) Join(name string, conn *Connection) {
 	rm.join <- &roomReq{
 		name: name,
@@ -155,7 +155,7 @@ func (rm *RoomManager) Join(name string, conn *Connection) {
 	}
 }
 
-// The connection leaves the room with the specified name.
+// Leave removes the connection from the specified room.
 func (rm *RoomManager) Leave(name string, conn *Connection) {
 	rm.leave <- &roomReq{
 		name: name,
@@ -163,8 +163,9 @@ func (rm *RoomManager) Leave(name string, conn *Connection) {
 	}
 }
 
-// The connection leaves all lobbies of this manager. This is important for clean up purposes to
-// keep the member count accurate. This should therefore always be called when a connection is closed.
+// LeaveAll removes the connection from all joined rooms of this manager.
+// This is an important step and should be called OnClose for all connections, that could have joined
+// a room of the manager, to keep the member reference count of the manager accurate.
 func (rm *RoomManager) LeaveAll(conn *Connection) {
 	rm.leaveAll <- conn
 }
@@ -181,7 +182,7 @@ func (rm *RoomManager) Emit(to string, event string, data interface{}) {
 	}
 }
 
-// Stop the message loop.
+// Stop the message loop and shutsdown the manager. It is safe to delete the instance afterwards.
 func (rm *RoomManager) Stop() {
 	rm.stop <- true
 }

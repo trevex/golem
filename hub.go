@@ -25,7 +25,8 @@ const (
 
 // The Hub manages all active connection, but should only be used directly
 // if broadcasting of data or an event to all connections is desired.
-// The Hub should not be instanced directly.
+// The Hub should not be instanced directly. Use GetHub to get the active hub
+// for broadcasting messages.
 type Hub struct {
 	// Registered connections.
 	connections map[*Connection]bool
@@ -86,7 +87,7 @@ var hub = Hub{
 	isRunning:   false,
 }
 
-// GetHub retrieves a pointer to the golem's active Hub.
+// GetHub retrieves and returns pointer to golem's active hub.
 func GetHub() *Hub {
 	return &hub
 }

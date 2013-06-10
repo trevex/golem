@@ -108,7 +108,7 @@ func (conn *Connection) readPumpTextHeartbeat() {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
-		conn.router.closeCallback(conn)
+		conn.router.closeFunc(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))
@@ -165,7 +165,7 @@ func (conn *Connection) readPumpText() {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
-		conn.router.closeCallback(conn)
+		conn.router.closeFunc(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))
@@ -214,7 +214,7 @@ func (conn *Connection) readPumpBinaryHeartbeat() {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
-		conn.router.closeCallback(conn)
+		conn.router.closeFunc(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))
@@ -271,7 +271,7 @@ func (conn *Connection) readPumpBinary() {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
-		conn.router.closeCallback(conn)
+		conn.router.closeFunc(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))

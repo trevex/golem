@@ -26,38 +26,40 @@ import (
 	"reflect"
 )
 
-// Router handle multiplexing of incoming messenges by typename/event.
+// Router handles multiplexing of incoming messenges by typenames/events.
+// Initially a router uses heartbeats and the default protocol.
 type Router struct {
 	// Map of callbacks for event types.
 	callbacks map[string]func(*Connection, interface{})
 	// Protocol extensions
 	extensions map[reflect.Type]reflect.Value
 	// Function being called if connection is closed.
-	closeCallback func(*Connection)
+	closeFunc func(*Connection)
 	// Function verifying handshake.
-	handshakeCallback func(http.ResponseWriter, *http.Request) bool
+	handshakeFunc func(http.ResponseWriter, *http.Request) bool
 	// Active protocol
 	protocol Protocol
 	// Flag to enable or disable heartbeats
 	useHeartbeats bool
 }
 
-// Returns new router instance.
+// NewRouter intialises a new instance and returns the pointer.
 func NewRouter() *Router {
 	// Tries to run hub, if already running nothing will happen.
 	hub.run()
 	// Returns pointer to instance.
 	return &Router{
-		callbacks:         make(map[string]func(*Connection, interface{})),
-		extensions:        make(map[reflect.Type]reflect.Value),
-		closeCallback:     func(*Connection) {},                                          // Empty placeholder close function.
-		handshakeCallback: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
-		protocol:          initialProtocol,
-		useHeartbeats:     true,
+		callbacks:     make(map[string]func(*Connection, interface{})),
+		extensions:    make(map[reflect.Type]reflect.Value),
+		closeFunc:     func(*Connection) {},                                          // Empty placeholder close function.
+		handshakeFunc: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
+		protocol:      initialProtocol,
+		useHeartbeats: true,
 	}
 }
 
-// Creates handler function for this router.
+// Handler creates a handler function for this router, that can be used with the
+// http-package to handle WebSocket-Connections.
 func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Check if method used was GET.
@@ -71,7 +73,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 		// Check if handshake callback verifies upgrade.
-		if !router.handshakeCallback(w, r) {
+		if !router.handshakeFunc(w, r) {
 			http.Error(w, "Authorization failed", 403)
 			return
 		}
@@ -97,9 +99,9 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 // For type T the callback would be of type:
 //     func (*golem.Connection, *T)
 // Type T can be any type. By default golem tries to unmarshal json into the
-// specified type. If a custom parser is known for the specified type, it will be
-// used instead.
-// If type T is []byte the incoming data will be directly forwarded!
+// specified type. If a custom protocol is used, it will be used instead to process the data.
+// If type T is registered to use a protocol extension, it will be used instead.
+// If type T is interface{} the interstage data of the active protocol will be directly forwarded!
 // (Note: the golem wiki has a whole page about this function)
 func (router *Router) On(name string, callback interface{}) {
 
@@ -161,14 +163,15 @@ func (router *Router) processMessage(conn *Connection, in []byte) {
 	defer recover()
 }
 
-// Set the callback for connection closes.
+// OnClose sets the callback for connection closes.
 func (router *Router) OnClose(callback func(*Connection)) {
-	router.closeCallback = callback
+	router.closeFunc = callback
 }
 
-// Set the callback for handshake verfication.
+// OnHandshake sets the callback for handshake verfication.
+// If the handshake function returns false the request will not be upgraded.
 func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Request) bool) {
-	router.handshakeCallback = callback
+	router.handshakeFunc = callback
 }
 
 // The ExtendProtocol-function allows adding of custom parsers for custom types. For any Type T
@@ -206,7 +209,7 @@ func (router *Router) SetProtocol(protocol Protocol) {
 	router.protocol = protocol
 }
 
-// Set
+// SetHeartbeat activates or deactivates the heartbeat depending on the flag parameter. By default heartbeats are activated.
 func (router *Router) SetHeartbeat(flag bool) {
 	router.useHeartbeats = flag
 }

@@ -41,13 +41,13 @@ var (
 // protocol, that should be used with golem, to implement.
 // The evented system of golem needs several steps to process incoming data:
 //  1. Unpack to extract the name of the event that was emitted.
-//  (next golem checks if an event handler exists, if does, the next method is called)
+//  (next golem checks if an event handler exists, if does, the next method is called with the associated structure of the event)
 //  2. Unmarshal the interstage product from unpack into the desired type.
 // For emitting data the process is reversed, but merged in a single function,
 // because evaluation the desired unmarshaled type is not necessary:
 //  1. MarshalAndPack marhals the data and the event name into an array of bytes.
-// The GetReadMode and GetWriteMode functions define what kind of Operation-Code
-// the sockets will receive.
+// The GetReadMode and GetWriteMode functions define what kind of WebSocket-
+// Communication will be used.
 type Protocol interface {
 	// Unpack splits/extracts event name from incoming data.
 	// Takes incoming data bytes as parameter and returns the event name, interstage data and if an error occured the error.
@@ -64,9 +64,9 @@ type Protocol interface {
 	GetWriteMode() int
 }
 
-// SetInitialProtocol sets the protocol that should be used be newly created routers. Therefore every router
-// created after changing the initial protocol will use the new protocol by default.
-func SetInitialProtocol(protocol Protocol) {
+// SetDefaultProtocol sets the protocol that should be used by newly created routers. Therefore every router
+// created after changing the default protocol will use the new protocol by default.
+func SetDefaultProtocol(protocol Protocol) {
 	initialProtocol = protocol
 }
 
@@ -89,7 +89,7 @@ func (_ *DefaultJSONProtocol) Unmarshal(data interface{}, typePtr interface{}) e
 	return json.Unmarshal(data.([]byte), typePtr)
 }
 
-// Marshals structure into JSON and pack event name in aswell. If not successful second return value is an error.
+// Marshals structure into JSON and packs event name in as well. If not successful second return value is an error.
 func (_ *DefaultJSONProtocol) MarshalAndPack(name string, structPtr interface{}) ([]byte, error) {
 	if data, err := json.Marshal(structPtr); err == nil {
 		result := []byte(name + protocolSeperator)
@@ -99,12 +99,12 @@ func (_ *DefaultJSONProtocol) MarshalAndPack(name string, structPtr interface{})
 	}
 }
 
-// Return TextMode because JSON is transmitted using the text mode of WebSockets
+// Return TextMode because JSON is transmitted using the text mode of WebSockets.
 func (_ *DefaultJSONProtocol) GetReadMode() int {
 	return TextMode
 }
 
-// Return TextMode because JSON is transmitted using the text mode of WebSockets
+// Return TextMode because JSON is transmitted using the text mode of WebSockets.
 func (_ *DefaultJSONProtocol) GetWriteMode() int {
 	return TextMode
 }

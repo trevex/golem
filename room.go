@@ -22,8 +22,8 @@ const (
 	roomSendChannelSize = 32
 )
 
-// A room is a group of connections, to allow broadcasting to groups.
-//
+// Rooms are groups of connections. A room provides methods to communicate with all
+// members of the group simultaneously.
 type Room struct {
 	// Map of member connections
 	members map[*Connection]bool
@@ -80,22 +80,22 @@ func (r *Room) run() {
 	}
 }
 
-// Stops the message queue.
+// Stops and shutsdown the room. After calling Stop the room can be safely deleted.
 func (r *Room) Stop() {
 	r.stop <- true
 }
 
-// The specified connection joins the room.
+// Join adds the provided connection to the room.
 func (r *Room) Join(conn *Connection) {
 	r.join <- conn
 }
 
-// If the specified connection is member of the room, the connection will leave it.
+// Leave removes the connection from the room, if it previously was member of the room.
 func (r *Room) Leave(conn *Connection) {
 	r.leave <- conn
 }
 
-// Emits message event to all members of the channel.
+// Emits message event to all members of the room.
 func (r *Room) Emit(event string, data interface{}) {
 	r.send <- &message{
 		event: event,
