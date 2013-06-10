@@ -14,7 +14,8 @@ go get github.com/trevex/golem
 
 Client
 -------------------------
-The client is still in work, but is already used in the examples and is available [here](https://github.com/trevex/golem_client).
+A [client](https://github.com/trevex/golem_client) is also available and heavily used in the [examples](https://github.com/trevex/golem_examples).
+More information on how the client is used can be found in the [client repository](https://github.com/trevex/golem_client).
 
 Documentation
 -------------------------
@@ -22,7 +23,13 @@ The documentation is provided via [godoc](http://godoc.org/github.com/trevex/gol
 
 Wiki & Tutorials
 -------------------------
-More informations and insights can be found on the [wiki page](https://github.com/trevex/golem/wiki) along with a tutorial series to learn how to use golem.
+More informations and insights can be found on the [wiki page](https://github.com/trevex/golem/wiki) along with a tutorial series to learn how to use golem:
+* [Getting started](https://github.com/trevex/golem/wiki/Getting-started)
+* [Using rooms](https://github.com/trevex/golem/wiki/Using-rooms)
+* [Building a Chat application](https://github.com/trevex/golem/wiki/Building-a-chat-application)
+* [Handshake authorisation using Sessions](https://github.com/trevex/golem/wiki/Handshake-authorisation-using-Sessions)
+* [Using flash as WebSocket fallback](https://github.com/trevex/golem/wiki/Using-flash-as-WebSocket-fallback)
+* [Custom protocol using BSON](https://github.com/trevex/golem/wiki/Custom-protocol-using-BSON)
 
 Examples
 -------------------------
