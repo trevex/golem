@@ -46,14 +46,17 @@ type Connection struct {
 	router *Router
 	// Buffered channel of outbound messages.
 	send chan *message
+	//
+	extension interface{}
 }
 
 // Create a new connection using the specified socket and router.
 func newConnection(s *websocket.Conn, r *Router) *Connection {
 	return &Connection{
-		socket: s,
-		router: r,
-		send:   make(chan *message, sendChannelSize),
+		socket:    s,
+		router:    r,
+		send:      make(chan *message, sendChannelSize),
+		extension: nil,
 	}
 }
 
@@ -83,6 +86,10 @@ func (conn *Connection) run() {
 			conn.readPumpBinary()
 		}
 	}
+}
+
+func (conn *Connection) extend(e interface{}) {
+	conn.extension = e
 }
 
 // Emit event with provided data. The data will be automatically marshalled and packed according

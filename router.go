@@ -41,6 +41,8 @@ type Router struct {
 	protocol Protocol
 	// Flag to enable or disable heartbeats
 	useHeartbeats bool
+	//
+	connExtensionConstructor reflect.Value
 }
 
 // NewRouter intialises a new instance and returns the pointer.
@@ -49,12 +51,13 @@ func NewRouter() *Router {
 	hub.run()
 	// Returns pointer to instance.
 	return &Router{
-		callbacks:     make(map[string]func(*Connection, interface{})),
-		extensions:    make(map[reflect.Type]reflect.Value),
-		closeFunc:     func(*Connection) {},                                          // Empty placeholder close function.
-		handshakeFunc: func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
-		protocol:      initialProtocol,
-		useHeartbeats: true,
+		callbacks:                make(map[string]func(*Connection, interface{})),
+		extensions:               make(map[reflect.Type]reflect.Value),
+		closeFunc:                func(*Connection) {},                                          // Empty placeholder close function.
+		handshakeFunc:            func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
+		protocol:                 initialProtocol,
+		useHeartbeats:            true,
+		connExtensionConstructor: reflect.ValueOf(nil),
 	}
 }
 
@@ -90,6 +93,10 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 
 		// Create the connection.
 		conn := newConnection(socket, router)
+		//
+		if router.connExtensionConstructor.IsValid() {
+			conn.extend(router.connExtensionConstructor.Call([]reflect.Value{reflect.ValueOf(conn)})[0].Interface())
+		}
 		// And start reading and writing routines.
 		conn.run()
 	}
@@ -105,51 +112,100 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 // (Note: the golem wiki has a whole page about this function)
 func (router *Router) On(name string, callback interface{}) {
 
-	// If callback function doesn't exept data
-	if reflect.TypeOf(callback).NumIn() == 1 {
-		router.callbacks[name] = func(conn *Connection, data interface{}) {
-			callback.(func(*Connection))(conn)
-		}
-		return
-	}
-
-	// If function accepts interface, do not unmarshal
-	if cb, ok := callback.(func(*Connection, interface{})); ok {
-		router.callbacks[name] = cb
-		return
-	}
-
-	// Needed by custom and json parsers
 	callbackValue := reflect.ValueOf(callback)
-	// Type of data parameter of callback function
-	callbackDataType := reflect.TypeOf(callback).In(1)
+	callbackType := reflect.TypeOf(callback)
+	if router.connExtensionConstructor.IsValid() {
+		extType := router.connExtensionConstructor.Type().Out(0)
+		if callbackType.In(0) == extType {
+			// EXTENSION TYPE
 
-	// If parser is available for this type, use it
-	if parser, ok := router.extensions[callbackDataType]; ok {
-		parserThenCallback := func(conn *Connection, data interface{}) {
-			if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
-				args := []reflect.Value{reflect.ValueOf(conn), result[0]}
+			// NO DATA
+			if callbackType.NumIn() == 1 {
+				router.callbacks[name] = func(conn *Connection, data interface{}) {
+					args := []reflect.Value{reflect.ValueOf(conn.extension)}
+					callbackValue.Call(args)
+				}
+				return
+			}
+
+			// INTERFACE
+			if callbackType.In(1).Kind() == reflect.Interface {
+				router.callbacks[name] = func(conn *Connection, data interface{}) {
+					args := []reflect.Value{reflect.ValueOf(conn.extension), reflect.ValueOf(data)}
+					callbackValue.Call(args)
+				}
+				return
+			}
+
+			// PROTOCOL EXTENSION
+			if parser, ok := router.extensions[callbackType.In(1)]; ok {
+				router.callbacks[name] = func(conn *Connection, data interface{}) {
+					if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
+						args := []reflect.Value{reflect.ValueOf(conn.extension), result[0]}
+						callbackValue.Call(args)
+					}
+				}
+				return
+			}
+
+			// PROTOCOL
+			callbackDataElem := callbackType.In(1).Elem()
+			router.callbacks[name] = func(conn *Connection, data interface{}) {
+				result := reflect.New(callbackDataElem)
+
+				err := router.protocol.Unmarshal(data, result.Interface())
+				if err == nil {
+					args := []reflect.Value{reflect.ValueOf(conn.extension), result}
+					callbackValue.Call(args)
+				} else {
+					// TODO: Proper debug output!
+				}
+			}
+			return
+		}
+	} else {
+		// DEFAULT TYPE
+
+		// NO DATA
+		if reflect.TypeOf(callback).NumIn() == 1 {
+			router.callbacks[name] = func(conn *Connection, data interface{}) {
+				callback.(func(*Connection))(conn)
+			}
+			return
+		}
+
+		// INTERFACE
+		if cb, ok := callback.(func(*Connection, interface{})); ok {
+			router.callbacks[name] = cb
+			return
+		}
+
+		// PROTOCOL EXTENSION
+		if parser, ok := router.extensions[callbackType.In(1)]; ok {
+			router.callbacks[name] = func(conn *Connection, data interface{}) {
+				if result := parser.Call([]reflect.Value{reflect.ValueOf(data)}); result[1].Bool() {
+					args := []reflect.Value{reflect.ValueOf(conn), result[0]}
+					callbackValue.Call(args)
+				}
+			}
+			return
+		}
+
+		// PROTOCOL
+		callbackDataElem := callbackType.In(1).Elem()
+		router.callbacks[name] = func(conn *Connection, data interface{}) {
+			result := reflect.New(callbackDataElem)
+
+			err := router.protocol.Unmarshal(data, result.Interface())
+			if err == nil {
+				args := []reflect.Value{reflect.ValueOf(conn), result}
 				callbackValue.Call(args)
+			} else {
+				// TODO: Proper debug output!
 			}
 		}
-		router.callbacks[name] = parserThenCallback
 		return
 	}
-
-	// Else interpret data as JSON and try to unmarshal it into requested type
-	callbackDataElem := callbackDataType.Elem()
-	unmarshalThenCallback := func(conn *Connection, data interface{}) {
-		result := reflect.New(callbackDataElem)
-
-		err := router.protocol.Unmarshal(data, result.Interface())
-		if err == nil {
-			args := []reflect.Value{reflect.ValueOf(conn), result}
-			callbackValue.Call(args)
-		} else {
-			// TODO: Proper debug output!
-		}
-	}
-	router.callbacks[name] = unmarshalThenCallback
 }
 
 // Unpacks incoming data and forwards it to callback.
@@ -174,7 +230,7 @@ func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Reque
 	router.handshakeFunc = callback
 }
 
-// The ExtendProtocol-function allows adding of custom parsers for custom types. For any Type T
+// The AddProtocolExtension-function allows adding of custom parsers for custom types. For any Type T
 // the parser function would look like this:
 //      func (interface{}) (T, bool)
 // The interface's type is depending on the interstage product of the active protocol, by default
@@ -185,7 +241,7 @@ func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Reque
 // The boolean return value is necessary to verify if parsing was successful.
 // All On-handling function accepting T as input data will now automatically use the custom
 // extension. For an example see the example_data.go file in the example repository.
-func (router *Router) ExtendProtocol(extensionFunc interface{}) error {
+func (router *Router) AddProtocolExtension(extensionFunc interface{}) error {
 	extensionValue := reflect.ValueOf(extensionFunc)
 	extensionType := extensionValue.Type()
 
@@ -204,10 +260,16 @@ func (router *Router) ExtendProtocol(extensionFunc interface{}) error {
 	return nil
 }
 
+func (router *Router) SetConnectionExtension(constructor interface{}) {
+	router.connExtensionConstructor = reflect.ValueOf(constructor)
+}
+
 // SetProtocol sets the protocol of the router to the supplied implementation of the Protocol interface.
 func (router *Router) SetProtocol(protocol Protocol) {
 	router.protocol = protocol
 }
+
+//
 
 // SetHeartbeat activates or deactivates the heartbeat depending on the flag parameter. By default heartbeats are activated.
 func (router *Router) SetHeartbeat(flag bool) {
