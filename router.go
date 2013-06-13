@@ -57,7 +57,7 @@ func NewRouter() *Router {
 		handshakeFunc:            func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:                 initialProtocol,
 		useHeartbeats:            true,
-		connExtensionConstructor: reflect.ValueOf(nil),
+		connExtensionConstructor: defaultConnectionExtension,
 	}
 }
 
@@ -260,6 +260,15 @@ func (router *Router) AddProtocolExtension(extensionFunc interface{}) error {
 	return nil
 }
 
+// SetConnectionExtension sets the extension for this router. A connection extension is an extended connection structure, that afterwards can be
+// used by On-handlers as well (use-cases: add persistent storage to connection, additional methods et cetera).
+// The SetConnectionExtension function takes the constructor of the custom format to be able to use and create it on
+// connection to the router.
+// For type E the constructor needs to fulfil the following requirements:
+//     func NewE(conn *Connection) *E
+// Afterwards On-handler can us this extended type:
+//     router.On(func (extendedConn E, data Datatype) { ... })
+// For an example have a look at the example repository and have a look at the 'example_connection_extension.go'.
 func (router *Router) SetConnectionExtension(constructor interface{}) {
 	router.connExtensionConstructor = reflect.ValueOf(constructor)
 }

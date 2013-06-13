@@ -62,7 +62,9 @@ func (hub *Hub) run() {
 					hub.connections[conn] = true
 				// Unregister dropped connection
 				case conn := <-hub.unregister:
-					hub.remove(conn)
+					if _, ok := hub.connections[conn]; ok {
+						hub.remove(conn)
+					}
 				// Broadcast
 				case message := <-hub.broadcast:
 					for conn := range hub.connections {

@@ -21,6 +21,7 @@ package golem
 import (
 	"github.com/garyburd/go-websocket/websocket"
 	"io/ioutil"
+	"reflect"
 	"time"
 )
 
@@ -36,6 +37,16 @@ const (
 	// Outgoing default channel size.
 	sendChannelSize = 512
 )
+
+var (
+	defaultConnectionExtension = reflect.ValueOf(nil)
+)
+
+// SetDefaultConnectionExtension sets the initial extension used by all freshly instanced routers.
+// For more information see the Router SetConnectionExtension() - method.
+func SetDefaultConnectionExtension(constructor interface{}) {
+	defaultConnectionExtension = reflect.ValueOf(constructor)
+}
 
 // Connection holds information about the underlying WebSocket-Connection,
 // the associated router and the outgoing data channel.
@@ -99,6 +110,11 @@ func (conn *Connection) Emit(event string, data interface{}) {
 		event: event,
 		data:  data,
 	}
+}
+
+// Close closes and cleans up the connection.
+func (conn *Connection) Close() {
+	hub.unregister <- conn
 }
 
 // Helper for writing to socket with deadline.
