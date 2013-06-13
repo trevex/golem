@@ -1,4 +1,4 @@
-golem _v0.4.0_
+golem _v0.4.2_
 ================================
 A lightweight extendable Go WebSocket-framework with [client library](https://github.com/trevex/golem_client). 
 
@@ -62,6 +62,7 @@ More informations and insights can be found on the [wiki page](https://github.co
 * [Handshake authorisation using Sessions](https://github.com/trevex/golem/wiki/Handshake-authorisation-using-Sessions)
 * [Using flash as WebSocket fallback](https://github.com/trevex/golem/wiki/Using-flash-as-WebSocket-fallback)
 * [Custom protocol using BSON](https://github.com/trevex/golem/wiki/Custom-protocol-using-BSON)
+* [Using an extended connection type](https://github.com/trevex/golem/wiki/Using-an-extended-connection-type)
 
 More Examples
 -------------------------
@@ -83,6 +84,9 @@ History
   * Protocol interchangable
   * Several bugfixes
   * Client up-to-date
+* _v0.4.2_
+  * Connection type can be extended
+  * Close added to connection
 
 Special thanks
 -------------------------
