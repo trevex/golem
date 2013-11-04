@@ -18,6 +18,11 @@
 
 package golem
 
+const (
+	roomManagerCreateEvent = "create"
+	roomManagerRemoveEvent = "remove"
+)
+
 // Room request information holding name of the room and the connection, which requested.
 type roomReq struct {
 	// Name of the lobby the request goes to.
@@ -60,19 +65,24 @@ type RoomManager struct {
 	send chan *roomMsg
 	// Stop signal channel
 	stop chan bool
+	// Room creation and removal callbacks
+	callbackRoomCreation func(string)
+	callbackRoomRemoval  func(string)
 }
 
 // NewRoomManager initialises a new instance and returns the a pointer to it.
 func NewRoomManager() *RoomManager {
 	// Create instance.
 	rm := RoomManager{
-		members:  make(map[*Connection]map[string]bool),
-		rooms:    make(map[string]*managedRoom),
-		join:     make(chan *roomReq),
-		leave:    make(chan *roomReq),
-		leaveAll: make(chan *Connection),
-		send:     make(chan *roomMsg, roomSendChannelSize),
-		stop:     make(chan bool),
+		members:              make(map[*Connection]map[string]bool),
+		rooms:                make(map[string]*managedRoom),
+		join:                 make(chan *roomReq),
+		leave:                make(chan *roomReq),
+		leaveAll:             make(chan *Connection),
+		send:                 make(chan *roomMsg, roomSendChannelSize),
+		stop:                 make(chan bool),
+		callbackRoomCreation: func(string) {},
+		callbackRoomRemoval:  func(string) {},
 	}
 	// Start message loop in new routine.
 	go rm.run()
@@ -92,6 +102,7 @@ func (rm *RoomManager) leaveRoomByName(name string, conn *Connection) {
 				if m.count == 0 { // Get rid of room if it is empty
 					m.room.Stop()
 					delete(rm.rooms, name)
+					rm.callbackRoomRemoval(name)
 				}
 			}
 		}
@@ -112,6 +123,7 @@ func (rm *RoomManager) run() {
 					count: 1, // start with count 1 for first user
 				}
 				rm.rooms[req.name] = m
+				rm.callbackRoomCreation(req.name)
 			} else { // If room exists increase count and join.
 				m.count++
 			}
@@ -185,4 +197,18 @@ func (rm *RoomManager) Emit(to string, event string, data interface{}) {
 // Stop the message loop and shutsdown the manager. It is safe to delete the instance afterwards.
 func (rm *RoomManager) Stop() {
 	rm.stop <- true
+}
+
+// The room manager can emit several events. At the moment there are two events:
+// "create" - triggered if a room was created and
+// "remove" - triggered when a room was removed because of insufficient users
+// For both the callback needs to be of the type func(string) where the argument
+// is the name of the room.
+func (rm *RoomManager) On(eventName string, callback interface{}) {
+	switch eventName {
+	case roomManagerCreateEvent:
+		rm.callbackRoomCreation = callback.(func(string))
+	case roomManagerRemoveEvent:
+		rm.callbackRoomRemoval = callback.(func(string))
+	}
 }

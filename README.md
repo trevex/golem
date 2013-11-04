@@ -1,4 +1,4 @@
-golem _v0.4.2_
+golem _v0.4.3_
 ================================
 A lightweight extendable Go WebSocket-framework with [client library](https://github.com/trevex/golem_client). 
 
@@ -87,6 +87,8 @@ History
 * _v0.4.2_
   * Connection type can be extended
   * Close added to connection
+* _v0.4.3_
+  * RoomManager emiting create- and remove-events (remove if room has insufficient users)
 
 Special thanks
 -------------------------
