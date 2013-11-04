@@ -102,7 +102,7 @@ func (rm *RoomManager) leaveRoomByName(name string, conn *Connection) {
 				if m.count == 0 { // Get rid of room if it is empty
 					m.room.Stop()
 					delete(rm.rooms, name)
-					rm.callbackRoomRemoval(name)
+					go rm.callbackRoomRemoval(name)
 				}
 			}
 		}
@@ -123,7 +123,7 @@ func (rm *RoomManager) run() {
 					count: 1, // start with count 1 for first user
 				}
 				rm.rooms[req.name] = m
-				rm.callbackRoomCreation(req.name)
+				go rm.callbackRoomCreation(req.name)
 			} else { // If room exists increase count and join.
 				m.count++
 			}
@@ -203,7 +203,6 @@ func (rm *RoomManager) Stop() {
 // "create" - triggered if a room was created and
 // "remove" - triggered when a room was removed because of insufficient users
 // For both the callback needs to be of the type func(string) where the argument
-// is the name of the room.
 func (rm *RoomManager) On(eventName string, callback interface{}) {
 	switch eventName {
 	case roomManagerCreateEvent:
