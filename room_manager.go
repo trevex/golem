@@ -61,6 +61,8 @@ type RoomManager struct {
 	leave chan *roomReq
 	// Channel of leave all requests, essentially cleaning up every trace of the specified connection.
 	leaveAll chan *Connection
+	// Channel of room destruction requests
+	destroy chan string
 	// Channel of messages associated with this room manager
 	send chan *roomMsg
 	// Stop signal channel
@@ -79,6 +81,7 @@ func NewRoomManager() *RoomManager {
 		join:                 make(chan *roomReq),
 		leave:                make(chan *roomReq),
 		leaveAll:             make(chan *Connection),
+		destroy:              make(chan string),
 		send:                 make(chan *roomMsg, roomSendChannelSize),
 		stop:                 make(chan bool),
 		callbackRoomCreation: func(string) {},
@@ -143,6 +146,14 @@ func (rm *RoomManager) run() {
 				}
 				delete(rm.members, conn) // Remove map of joined lobbies
 			}
+		case name := <-rm.destroy:
+			if m, ok := rm.rooms[name]; ok {
+				// This should result inthe room being stopped/destroyed when the last
+				// connection is dropped
+				for conn := range m.room.members {
+					rm.leaveRoomByName(name, conn)
+				}
+			}
 		// Send
 		case rMsg := <-rm.send:
 			if m, ok := rm.rooms[rMsg.to]; ok { // If room exists, get it and send data to it.
@@ -197,6 +208,11 @@ func (rm *RoomManager) Emit(to string, event string, data interface{}) {
 // Stop the message loop and shutsdown the manager. It is safe to delete the instance afterwards.
 func (rm *RoomManager) Stop() {
 	rm.stop <- true
+}
+
+// Remove connections from a particular room and delete the room
+func (rm *RoomManager) Destroy(name string) {
+	rm.destroy <- name
 }
 
 // The room manager can emit several events. At the moment there are two events:
