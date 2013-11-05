@@ -219,9 +219,28 @@ func (router *Router) processMessage(conn *Connection, in []byte) {
 	defer recover()
 }
 
-// OnClose sets the callback for connection closes.
-func (router *Router) OnClose(callback func(*Connection)) {
-	router.closeFunc = callback
+// OnClose sets the callback, that is called when the connection is closed.
+// It accept function of the type func(*Connection) by default or functions
+// taking extended connection types if previously registered.
+func (router *Router) OnClose(callback interface{}) error { //func(*Connection)) {
+	if cb, ok := callback.(func(*Connection)); ok {
+		router.closeFunc = cb
+	} else {
+		if router.connExtensionConstructor.IsValid() {
+			callbackValue := reflect.ValueOf(callback)
+			extType := router.connExtensionConstructor.Type().Out(0)
+			if reflect.TypeOf(callback).In(0) == extType {
+				router.closeFunc = func(conn *Connection) {
+					callbackValue.Call([]reflect.Value{reflect.ValueOf(conn.extension)})
+				}
+			} else {
+				return errors.New("OnClose cannot accept a callback of the type " + reflect.TypeOf(callback).String() + ".")
+			}
+		} else {
+			return errors.New("OnClose can only accept functions of the type func(*Connection), if no extension is registered.")
+		}
+	}
+	return nil
 }
 
 // OnHandshake sets the callback for handshake verfication.
