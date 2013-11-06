@@ -35,6 +35,9 @@ type Router struct {
 	extensions map[reflect.Type]reflect.Value
 	// Function being called if connection is closed.
 	closeFunc func(*Connection)
+    // Function called after handshake when a WebSocket connection
+    // was succesfully established.
+    connectionFunc func(*Connection)
 	// Function verifying handshake.
 	handshakeFunc func(http.ResponseWriter, *http.Request) bool
 	// Active protocol
@@ -54,6 +57,7 @@ func NewRouter() *Router {
 		callbacks:                make(map[string]func(*Connection, interface{})),
 		extensions:               make(map[reflect.Type]reflect.Value),
 		closeFunc:                func(*Connection) {},                                          // Empty placeholder close function.
+        connectionFunc: func(*Connection) {},
 		handshakeFunc:            func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:                 initialProtocol,
 		useHeartbeats:            true,
@@ -97,7 +101,11 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 		if router.connExtensionConstructor.IsValid() {
 			conn.extend(router.connExtensionConstructor.Call([]reflect.Value{reflect.ValueOf(conn)})[0].Interface())
 		}
-		// And start reading and writing routines.
+
+        // Connection established with possible extension, so callback
+        router.connectionFunc(conn)
+		
+        // And start reading and writing routines.
 		conn.run()
 	}
 }
@@ -238,6 +246,31 @@ func (router *Router) OnClose(callback interface{}) error { //func(*Connection))
 			}
 		} else {
 			return errors.New("OnClose can only accept functions of the type func(*Connection), if no extension is registered.")
+		}
+	}
+	return nil
+}
+
+// OnConnection sets the callback, that is called when a websocket connection
+// was successfully established, it is therefore called after the handshake.
+// It accept function of the type func(*Connection) by default or functions
+// taking extended connection types if previously registered.
+func (router *Router) OnConnection(callback interface{}) error { //func(*Connection)) {
+	if cb, ok := callback.(func(*Connection)); ok {
+		router.connectionFunc = cb
+	} else {
+		if router.connExtensionConstructor.IsValid() {
+			callbackValue := reflect.ValueOf(callback)
+			extType := router.connExtensionConstructor.Type().Out(0)
+			if reflect.TypeOf(callback).In(0) == extType {
+				router.connectionFunc = func(conn *Connection) {
+					callbackValue.Call([]reflect.Value{reflect.ValueOf(conn.extension)})
+				}
+			} else {
+				return errors.New("OnConnection cannot accept a callback of the type " + reflect.TypeOf(callback).String() + ".")
+			}
+		} else {
+			return errors.New("OnConnection can only accept functions of the type func(*Connection), if no extension is registered.")
 		}
 	}
 	return nil
