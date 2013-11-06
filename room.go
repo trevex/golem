@@ -59,10 +59,15 @@ func (r *Room) run() {
 		// Join
 		case conn := <-r.join:
 			r.members[conn] = true
+			conn.roomcount++
 		// Leave
 		case conn := <-r.leave:
 			if _, ok := r.members[conn]; ok { // If member exists, delete it
 				delete(r.members, conn)
+				conn.roomcount--
+				if (conn.roomcount == 0) && (conn.options&CloseConnectionOnLastRoomLeft > 0) {
+					conn.Close()
+				}
 			}
 		// Send
 		case message := <-r.send:

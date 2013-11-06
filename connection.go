@@ -36,6 +36,8 @@ const (
 	maxMessageSize = 512
 	// Outgoing default channel size.
 	sendChannelSize = 512
+	// Option to close a connection when the last room has been left
+	CloseConnectionOnLastRoomLeft = 1
 )
 
 var (
@@ -57,6 +59,10 @@ type Connection struct {
 	router *Router
 	// Buffered channel of outbound messages.
 	send chan *message
+	// Connection options
+	options uint32
+	// Room count, used if CloseConnectionOnLastRoomLeft is in options
+	roomcount uint16
 	//
 	extension interface{}
 }
