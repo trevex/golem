@@ -99,6 +99,11 @@ Special thanks
 * [Andrew Gallant](http://burntsushi.net/) (for help on golang-nuts mailing list)
 * [Kortschak](https://github.com/kortschak) (for help on golang-nuts mailing list)
 
+Contributors
+-------------------------
+* [Nik Voss](https://github.com/trevex)
+* [Jeff Mitchell](https://github.com/jefferai)
+
 TODO
 -------------------------
 * Verbose and configurable logging
