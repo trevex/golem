@@ -19,9 +19,9 @@
 package golem
 
 const (
-	roomManagerCreateEvent = "create"
-	roomManagerRemoveEvent = "remove"
-    CloseConnectionOnLastRoomLeft = 1
+	roomManagerCreateEvent        = "create"
+	roomManagerRemoveEvent        = "remove"
+	CloseConnectionOnLastRoomLeft = 1
 )
 
 // Room request information holding name of the room and the connection, which requested.
@@ -51,22 +51,22 @@ type managedRoom struct {
 // Structure containing all necessary informations and options of
 // connection for the room manager instance
 type connectionInfo struct {
-     rooms map[string]bool
-     options uint32
+	rooms   map[string]bool
+	options uint32
 }
 
 type connectionInfoReq struct {
-    conn *Connection
-    options uint32
-    overwrite bool
+	conn      *Connection
+	options   uint32
+	overwrite bool
 }
 
 // Constructor for connection info struct
 func newConnectionInfo() *connectionInfo {
-    return &connectionInfo{
-        rooms: make(map[string]bool),
-        options: 0,
-    }
+	return &connectionInfo{
+		rooms:   make(map[string]bool),
+		options: 0,
+	}
 }
 
 // Handles any count of lobbies by keys. Currently only strings are supported as keys (room names).
@@ -85,8 +85,8 @@ type RoomManager struct {
 	leaveAll chan *Connection
 	// Channel of room destruction requests
 	destroy chan string
-    // Channel of connection option requests
-    options chan *connectionInfoReq
+	// Channel of connection option requests
+	options chan *connectionInfoReq
 	// Channel of messages associated with this room manager
 	send chan *roomMsg
 	// Stop signal channel
@@ -106,7 +106,7 @@ func NewRoomManager() *RoomManager {
 		leave:                make(chan *roomReq),
 		leaveAll:             make(chan *Connection),
 		destroy:              make(chan string),
-        options: make(chan *connectionInfoReq), 
+		options:              make(chan *connectionInfoReq),
 		send:                 make(chan *roomMsg, roomSendChannelSize),
 		stop:                 make(chan bool),
 		callbackRoomCreation: func(string) {},
@@ -127,10 +127,10 @@ func (rm *RoomManager) leaveRoomByName(name string, conn *Connection) {
 				m.room.leave <- conn
 				m.count--
 				delete(c.rooms, name)
-                if len(c.rooms) == 0 && (c.options&CloseConnectionOnLastRoomLeft) == CloseConnectionOnLastRoomLeft {
-                    delete(rm.members, conn)
-                    conn.Close() 
-                }
+				if len(c.rooms) == 0 && (c.options&CloseConnectionOnLastRoomLeft) == CloseConnectionOnLastRoomLeft {
+					delete(rm.members, conn)
+					conn.Close()
+				}
 				if m.count == 0 { // Get rid of room if it is empty
 					m.room.Stop()
 					delete(rm.rooms, name)
@@ -160,10 +160,10 @@ func (rm *RoomManager) run() {
 				m.count++
 			}
 			m.room.join <- req.conn
-            c, ok := rm.members[req.conn]           
+			c, ok := rm.members[req.conn]
 			if !ok { // If room association map for connection does not exist, create it!
-                c = newConnectionInfo()
-				rm.members[req.conn] = c 
+				c = newConnectionInfo()
+				rm.members[req.conn] = c
 			}
 			c.rooms[req.name] = true // Flag this room on members room map.
 		// Leave
@@ -185,17 +185,17 @@ func (rm *RoomManager) run() {
 					rm.leaveRoomByName(name, conn)
 				}
 			}
-        case req := <-rm.options:
-            c, ok := rm.members[req.conn]
-          	if !ok { // If room association map for connection does not exist, create it!
-                c = newConnectionInfo()
+		case req := <-rm.options:
+			c, ok := rm.members[req.conn]
+			if !ok { // If room association map for connection does not exist, create it!
+				c = newConnectionInfo()
 				rm.members[req.conn] = c
-			} 
-            if req.overwrite {
-                c.options = req.options
-            } else {
-                c.options = req.options | c.options
-            }
+			}
+			if req.overwrite {
+				c.options = req.options
+			} else {
+				c.options = req.options | c.options
+			}
 		// Send
 		case rMsg := <-rm.send:
 			if m, ok := rm.rooms[rMsg.to]; ok { // If room exists, get it and send data to it.
@@ -213,11 +213,11 @@ func (rm *RoomManager) run() {
 }
 
 func (rm *RoomManager) SetConnectionOptions(conn *Connection, options uint32, overwrite bool) {
-    rm.options <- &connectionInfoReq{
-        conn: conn,
-        options: options,
-        overwrite: overwrite,
-    }
+	rm.options <- &connectionInfoReq{
+		conn:      conn,
+		options:   options,
+		overwrite: overwrite,
+	}
 }
 
 // Join adds the connection to the specified room.

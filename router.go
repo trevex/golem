@@ -35,9 +35,9 @@ type Router struct {
 	extensions map[reflect.Type]reflect.Value
 	// Function being called if connection is closed.
 	closeFunc func(*Connection)
-    // Function called after handshake when a WebSocket connection
-    // was succesfully established.
-    connectionFunc func(*Connection)
+	// Function called after handshake when a WebSocket connection
+	// was succesfully established.
+	connectionFunc func(*Connection)
 	// Function verifying handshake.
 	handshakeFunc func(http.ResponseWriter, *http.Request) bool
 	// Active protocol
@@ -56,8 +56,8 @@ func NewRouter() *Router {
 	return &Router{
 		callbacks:                make(map[string]func(*Connection, interface{})),
 		extensions:               make(map[reflect.Type]reflect.Value),
-		closeFunc:                func(*Connection) {},                                          // Empty placeholder close function.
-        connectionFunc: func(*Connection) {},
+		closeFunc:                func(*Connection) {}, // Empty placeholder close function.
+		connectionFunc:           func(*Connection) {},
 		handshakeFunc:            func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:                 initialProtocol,
 		useHeartbeats:            true,
@@ -102,10 +102,10 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			conn.extend(router.connExtensionConstructor.Call([]reflect.Value{reflect.ValueOf(conn)})[0].Interface())
 		}
 
-        // Connection established with possible extension, so callback
-        router.connectionFunc(conn)
-		
-        // And start reading and writing routines.
+		// Connection established with possible extension, so callback
+		router.connectionFunc(conn)
+
+		// And start reading and writing routines.
 		conn.run()
 	}
 }
@@ -255,7 +255,7 @@ func (router *Router) OnClose(callback interface{}) error { //func(*Connection))
 // was successfully established, it is therefore called after the handshake.
 // It accept function of the type func(*Connection) by default or functions
 // taking extended connection types if previously registered.
-func (router *Router) OnConnection(callback interface{}) error { //func(*Connection)) {
+func (router *Router) OnConnect(callback interface{}) error { //func(*Connection)) {
 	if cb, ok := callback.(func(*Connection)); ok {
 		router.connectionFunc = cb
 	} else {
