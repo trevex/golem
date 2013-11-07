@@ -20,7 +20,7 @@ package golem
 
 import (
 	"errors"
-	"github.com/garyburd/go-websocket/websocket"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"reflect"
@@ -85,7 +85,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 		// Upgrade websocket connection.
-		socket, err := websocket.Upgrade(w, r.Header, nil, 1024, 1024)
+		socket, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 		// Check if handshake was successful
 		if _, ok := err.(websocket.HandshakeError); ok {
 			http.Error(w, "Not a websocket handshake", 400)

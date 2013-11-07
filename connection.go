@@ -19,8 +19,7 @@
 package golem
 
 import (
-	"github.com/garyburd/go-websocket/websocket"
-	"io/ioutil"
+	"github.com/gorilla/websocket"
 	"reflect"
 	"time"
 )
@@ -74,29 +73,21 @@ func newConnection(s *websocket.Conn, r *Router) *Connection {
 // Register connection and start writing and reading loops.
 func (conn *Connection) run() {
 	hub.register <- conn
-	if conn.router.useHeartbeats {
-		if conn.router.protocol.GetWriteMode() == TextMode {
-			go conn.writePumpTextHeartbeat()
-		} else {
-			go conn.writePumpBinaryHeartbeat()
-		}
-		if conn.router.protocol.GetReadMode() == TextMode {
-			conn.readPumpTextHeartbeat()
-		} else {
-			conn.readPumpBinaryHeartbeat()
-		}
-	} else {
-		if conn.router.protocol.GetWriteMode() == TextMode {
-			go conn.writePumpText()
-		} else {
-			go conn.writePumpBinary()
-		}
-		if conn.router.protocol.GetReadMode() == TextMode {
-			conn.readPumpText()
-		} else {
-			conn.readPumpBinary()
-		}
-	}
+    readMode := websocket.TextMessage
+    writeMode := websocket.TextMessage
+    if conn.router.protocol.GetReadMode() != TextMode {
+        readMode = websocket.BinaryMessage
+    }
+    if conn.router.protocol.GetWriteMode() != TextMode {
+        writeMode = websocket.BinaryMessage
+    }
+    if conn.router.useHeartbeats {
+        go conn.writePumpHeartbeat(writeMode)
+        conn.readPumpHeartbeat(readMode)
+    } else {
+        go conn.writePump(writeMode)
+        conn.readPump(readMode)
+    }
 }
 
 func (conn *Connection) extend(e interface{}) {
@@ -118,16 +109,16 @@ func (conn *Connection) Close() {
 }
 
 // Helper for writing to socket with deadline.
-func (conn *Connection) write(opCode int, payload []byte) error {
+func (conn *Connection) write(mode int, payload []byte) error {
 	conn.socket.SetWriteDeadline(time.Now().Add(writeWait))
-	return conn.socket.WriteMessage(opCode, payload)
+	return conn.socket.WriteMessage(mode, payload)
 }
 
 /*
- * Pumps for Text with Heartbeat.
+ * Pumps with Heartbeat.
  */
 
-func (conn *Connection) readPumpTextHeartbeat() {
+func (conn *Connection) readPumpHeartbeat(mode int) {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
@@ -135,25 +126,22 @@ func (conn *Connection) readPumpTextHeartbeat() {
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
 	conn.socket.SetReadDeadline(time.Now().Add(readWait))
+    conn.socket.SetPongHandler(func(string) error {
+        conn.socket.SetReadDeadline(time.Now().Add(readWait))
+        return nil
+    })
 	for {
-		op, r, err := conn.socket.NextReader()
+		mm, message, err := conn.socket.ReadMessage()
 		if err != nil {
 			break
 		}
-		switch op {
-		case websocket.OpPong:
-			conn.socket.SetReadDeadline(time.Now().Add(readWait))
-		case websocket.OpText:
-			message, err := ioutil.ReadAll(r)
-			if err != nil {
-				break
-			}
-			conn.router.processMessage(conn, message)
-		}
+        if mm == mode {
+            conn.router.processMessage(conn, message)
+        }
 	}
 }
 
-func (conn *Connection) writePumpTextHeartbeat() {
+func (conn *Connection) writePumpHeartbeat(mode int) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -164,16 +152,18 @@ func (conn *Connection) writePumpTextHeartbeat() {
 		case message, ok := <-conn.send:
 			if ok {
 				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
-					if err := conn.write(websocket.OpText, data); err != nil {
-						return
+					if err := conn.write(mode, data); err != nil {
+						return 
 					}
-				}
+				} else {
+                    // TODO: logging
+                }
 			} else {
-				conn.write(websocket.OpClose, []byte{})
+				conn.write(websocket.CloseMessage, []byte{})
 				return
 			}
 		case <-ticker.C:
-			if err := conn.write(websocket.OpPing, []byte{}); err != nil {
+			if err := conn.write(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
 		}
@@ -181,34 +171,28 @@ func (conn *Connection) writePumpTextHeartbeat() {
 }
 
 /*
- * Pumps for Text without Heartbeat
+ * Pumps without Heartbeat
  */
 
-func (conn *Connection) readPumpText() {
+func (conn *Connection) readPump(mode int) {
 	defer func() {
 		hub.unregister <- conn
 		conn.socket.Close()
 		conn.router.closeFunc(conn)
 	}()
 	conn.socket.SetReadLimit(maxMessageSize)
-	conn.socket.SetReadDeadline(time.Now().Add(readWait))
 	for {
-		op, r, err := conn.socket.NextReader()
+		mm, message, err := conn.socket.ReadMessage()
 		if err != nil {
 			break
 		}
-		switch op {
-		case websocket.OpText:
-			message, err := ioutil.ReadAll(r)
-			if err != nil {
-				break
-			}
-			conn.router.processMessage(conn, message)
-		}
+        if mm == mode {
+            conn.router.processMessage(conn, message)
+        }
 	}
 }
 
-func (conn *Connection) writePumpText() {
+func (conn *Connection) writePump(mode int) {
 	defer func() {
 		conn.socket.Close() // Necessary to force reading to stop
 	}()
@@ -217,120 +201,18 @@ func (conn *Connection) writePumpText() {
 		case message, ok := <-conn.send:
 			if ok {
 				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
-					if err := conn.write(websocket.OpText, data); err != nil {
-						return
+					if err := conn.write(mode, data); err != nil {
+						return 
 					}
-				}
+				} else {
+                    // TODO: logging
+                }
 			} else {
-				conn.write(websocket.OpClose, []byte{})
+				conn.write(websocket.CloseMessage, []byte{})
 				return
 			}
 		}
 	}
 }
 
-/*
- * Pumps for Binary with Heartbeat
- */
 
-func (conn *Connection) readPumpBinaryHeartbeat() {
-	defer func() {
-		hub.unregister <- conn
-		conn.socket.Close()
-		conn.router.closeFunc(conn)
-	}()
-	conn.socket.SetReadLimit(maxMessageSize)
-	conn.socket.SetReadDeadline(time.Now().Add(readWait))
-	for {
-		op, r, err := conn.socket.NextReader()
-		if err != nil {
-			break
-		}
-		switch op {
-		case websocket.OpPong:
-			conn.socket.SetReadDeadline(time.Now().Add(readWait))
-		case websocket.OpBinary:
-			message, err := ioutil.ReadAll(r)
-			if err != nil {
-				break
-			}
-			conn.router.processMessage(conn, message)
-		}
-	}
-}
-
-func (conn *Connection) writePumpBinaryHeartbeat() {
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-		conn.socket.Close() // Necessary to force reading to stop
-	}()
-	for {
-		select {
-		case message, ok := <-conn.send:
-			if ok {
-				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
-					if err := conn.write(websocket.OpBinary, data); err != nil {
-						return
-					}
-				}
-			} else {
-				conn.write(websocket.OpClose, []byte{})
-				return
-			}
-		case <-ticker.C:
-			if err := conn.write(websocket.OpPing, []byte{}); err != nil {
-				return
-			}
-		}
-	}
-}
-
-/*
- * Pumps for Binary without Heartbeat
- */
-
-func (conn *Connection) readPumpBinary() {
-	defer func() {
-		hub.unregister <- conn
-		conn.socket.Close()
-		conn.router.closeFunc(conn)
-	}()
-	conn.socket.SetReadLimit(maxMessageSize)
-	conn.socket.SetReadDeadline(time.Now().Add(readWait))
-	for {
-		op, r, err := conn.socket.NextReader()
-		if err != nil {
-			break
-		}
-		switch op {
-		case websocket.OpBinary:
-			message, err := ioutil.ReadAll(r)
-			if err != nil {
-				break
-			}
-			conn.router.processMessage(conn, message)
-		}
-	}
-}
-
-func (conn *Connection) writePumpBinary() {
-	defer func() {
-		conn.socket.Close() // Necessary to force reading to stop
-	}()
-	for {
-		select {
-		case message, ok := <-conn.send:
-			if ok {
-				if data, err := conn.router.protocol.MarshalAndPack(message.event, message.data); err == nil {
-					if err := conn.write(websocket.OpBinary, data); err != nil {
-						return
-					}
-				}
-			} else {
-				conn.write(websocket.OpClose, []byte{})
-				return
-			}
-		}
-	}
-}
