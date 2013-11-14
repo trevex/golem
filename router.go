@@ -37,7 +37,7 @@ type Router struct {
 	closeFunc func(*Connection)
 	// Function called after handshake when a WebSocket connection
 	// was succesfully established.
-	connectionFunc func(*Connection)
+	connectionFunc func(*Connection, *http.Request)
 	// Function verifying handshake.
 	handshakeFunc func(http.ResponseWriter, *http.Request) bool
 	// Active protocol
@@ -46,6 +46,10 @@ type Router struct {
 	useHeartbeats bool
 	//
 	connExtensionConstructor reflect.Value
+	// If set, the values the Origin header will be checked against and access is only allowed
+	// on a match; otherwise no Origin checking is performed. *This overrides the
+	// Access-Control-Allow-Origin header!*
+	Origins []string
 }
 
 // NewRouter intialises a new instance and returns the pointer.
@@ -57,11 +61,12 @@ func NewRouter() *Router {
 		callbacks:                make(map[string]func(*Connection, interface{})),
 		extensions:               make(map[reflect.Type]reflect.Value),
 		closeFunc:                func(*Connection) {}, // Empty placeholder close function.
-		connectionFunc:           func(*Connection) {},
+		connectionFunc:           func(*Connection, *http.Request) {},
 		handshakeFunc:            func(http.ResponseWriter, *http.Request) bool { return true }, // Handshake always allowed.
 		protocol:                 initialProtocol,
 		useHeartbeats:            true,
 		connExtensionConstructor: defaultConnectionExtension,
+		Origins:                  make([]string, 0),
 	}
 }
 
@@ -74,18 +79,45 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, "Method not allowed", 405)
 			return
 		}
+
 		// Disallow cross-origin connections.
-		if r.Header.Get("Origin") != "http://"+r.Host {
-			http.Error(w, "Origin not allowed", 403)
-			return
+		if len(router.Origins) > 0 {
+			originFound := false
+			for _, origin := range router.Origins {
+				if r.Header.Get("Origin") == origin {
+					originFound = true
+					break
+				}
+			}
+			if !originFound {
+				http.Error(w, "Origin not allowed", 403)
+				return
+			}
+		} else {
+			if len(r.Header.Get("Access-Control-Allow-Origin")) > 0 {
+				allowedOrigin := r.Header.Get("Access-Control-Allow-Origin")
+				if allowedOrigin != "*" {
+					if r.URL.Scheme+"://"+r.Host != allowedOrigin {
+						http.Error(w, "Origin not allwed", 403)
+						return
+					}
+				}
+			}
 		}
+
 		// Check if handshake callback verifies upgrade.
 		if !router.handshakeFunc(w, r) {
 			http.Error(w, "Authorization failed", 403)
 			return
 		}
+
 		// Upgrade websocket connection.
-		socket, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+		protocols := websocket.Subprotocols(r)
+		var responseHeader http.Header = nil
+		if len(protocols) > 0 {
+			responseHeader = http.Header{"Sec-Websocket-Protocol": {protocols[0]}}
+		}
+		socket, err := websocket.Upgrade(w, r, responseHeader, 1024, 1024)
 		// Check if handshake was successful
 		if _, ok := err.(websocket.HandshakeError); ok {
 			http.Error(w, "Not a websocket handshake", 400)
@@ -103,7 +135,7 @@ func (router *Router) Handler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		// Connection established with possible extension, so callback
-		router.connectionFunc(conn)
+		router.connectionFunc(conn, r)
 
 		// And start reading and writing routines.
 		conn.run()
@@ -253,18 +285,19 @@ func (router *Router) OnClose(callback interface{}) error { //func(*Connection))
 
 // OnConnection sets the callback, that is called when a websocket connection
 // was successfully established, it is therefore called after the handshake.
-// It accept function of the type func(*Connection) by default or functions
+// It accept function of the type func(*Connection, *http.Request) by default or functions
 // taking extended connection types if previously registered.
+// The http.Request object can be used for connection metadata information.
 func (router *Router) OnConnect(callback interface{}) error { //func(*Connection)) {
-	if cb, ok := callback.(func(*Connection)); ok {
+	if cb, ok := callback.(func(*Connection, *http.Request)); ok {
 		router.connectionFunc = cb
 	} else {
 		if router.connExtensionConstructor.IsValid() {
 			callbackValue := reflect.ValueOf(callback)
 			extType := router.connExtensionConstructor.Type().Out(0)
 			if reflect.TypeOf(callback).In(0) == extType {
-				router.connectionFunc = func(conn *Connection) {
-					callbackValue.Call([]reflect.Value{reflect.ValueOf(conn.extension)})
+				router.connectionFunc = func(conn *Connection, hr *http.Request) {
+					callbackValue.Call([]reflect.Value{reflect.ValueOf(conn.extension), reflect.ValueOf(hr)})
 				}
 			} else {
 				return errors.New("OnConnection cannot accept a callback of the type " + reflect.TypeOf(callback).String() + ".")
@@ -278,6 +311,7 @@ func (router *Router) OnConnect(callback interface{}) error { //func(*Connection
 
 // OnHandshake sets the callback for handshake verfication.
 // If the handshake function returns false the request will not be upgraded.
+// The http.Request object will be passed into OnConnect as well.
 func (router *Router) OnHandshake(callback func(http.ResponseWriter, *http.Request) bool) {
 	router.handshakeFunc = callback
 }
