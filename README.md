@@ -2,6 +2,10 @@ golem _v0.4.4_
 ================================
 A lightweight extendable Go WebSocket-framework with [client library](https://github.com/trevex/golem_client). 
 
+Status
+-------------------------
+The project can be considered __dead__. There has been no development in recent years. It is still available on github for research and archiving purposes.
+
 License
 -------------------------
 Golem is available under the  [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
